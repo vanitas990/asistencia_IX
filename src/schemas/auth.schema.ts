@@ -4,22 +4,27 @@ export const registerSchema = z.object({
   dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener exactamente 8 dígitos.'),
   nombre: z.string().trim().min(1, 'Ingresa tu nombre.').max(100, 'El nombre es demasiado largo.'),
   apellido: z.string().trim().min(1, 'Ingresa tu apellido.').max(100, 'El apellido es demasiado largo.'),
-  facultad: z
-    .string()
-    .trim()
-    .min(1, 'Ingresa tu facultad.')
-    .max(150, 'El nombre de la facultad es demasiado largo.'),
+  facultad: z.string().trim().max(150, 'El nombre de la facultad es demasiado largo.').nullable().optional(),
   carrera: z
     .string()
     .trim()
-    .min(1, 'Ingresa tu carrera.')
+    .min(1, 'Ingresa tu carrera o especialidad.')
     .max(150, 'El nombre de la carrera es demasiado largo.'),
-  ciclo: z.string().trim().min(1, 'Ingresa tu ciclo.').max(30, 'El ciclo es demasiado largo.'),
+  ciclo: z.string().trim().max(30, 'El ciclo es demasiado largo.').nullable().optional(),
   password: z
     .string()
     .min(6, 'La contraseña debe tener al menos 6 caracteres.')
     .max(128, 'La contraseña no puede superar 128 caracteres.'),
   rol: z.enum(['supervisor', 'alumno']),
+}).superRefine((data, context) => {
+  if (data.rol === 'alumno') {
+    if (!data.facultad?.trim()) {
+      context.addIssue({ code: 'custom', path: ['facultad'], message: 'Ingresa tu facultad.' });
+    }
+    if (!data.ciclo?.trim()) {
+      context.addIssue({ code: 'custom', path: ['ciclo'], message: 'Ingresa tu ciclo.' });
+    }
+  }
 });
 
 export const loginSchema = z.object({
@@ -37,9 +42,9 @@ export const perfilSchema = z.object({
   rol: z.enum(['supervisor', 'alumno']),
   nombre: z.string(),
   apellido: z.string(),
-  facultad: z.string(),
+  facultad: z.string().nullable(),
   carrera: z.string(),
-  ciclo: z.string(),
+  ciclo: z.string().nullable(),
   created_at: z.string(),
   avatar_url: z.string().nullable().default(null),
 });

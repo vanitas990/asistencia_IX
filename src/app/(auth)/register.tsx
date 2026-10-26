@@ -1,5 +1,6 @@
 import { Link, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -9,6 +10,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -35,9 +37,11 @@ export default function RegisterScreen() {
   const [form, setForm] = useState(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [isConsultingStudent, setIsConsultingStudent] = useState(false);
   const [studentDataDni, setStudentDataDni] = useState<string | null>(null);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
+  const studentLookupRequest = useRef(0);
 
   useEffect(() => {
     if (!isLoading && userId) {
@@ -46,35 +50,44 @@ export default function RegisterScreen() {
   }, [isLoading, userId]);
 
   function updateField<K extends keyof RegisterFormData>(field: K, value: RegisterFormData[K]) {
-    setForm((current) => ({ ...current, [field]: value }));
-    if (field === 'dni') {
+    if (field === 'dni' && typeof value === 'string') {
+      studentLookupRequest.current += 1;
+      setIsConsultingStudent(false);
       setStudentDataDni(null);
       setForm((current) => ({
         ...current,
-        nombre: current.rol === 'alumno' ? '' : current.nombre,
-        apellido: current.rol === 'alumno' ? '' : current.apellido,
-        facultad: current.rol === 'alumno' ? '' : current.facultad,
-        carrera: current.rol === 'alumno' ? '' : current.carrera,
-        ciclo: current.rol === 'alumno' ? '' : current.ciclo,
+        dni: value,
+        ...(current.rol === 'alumno'
+          ? { nombre: '', apellido: '', facultad: '', carrera: '', ciclo: '' }
+          : {}),
       }));
+      setFormError(null);
+      clearAuthError();
+      if (form.rol === 'alumno' && /^\d{8}$/.test(value)) {
+        void handleConsultStudent(value);
+      }
+      return;
     }
+
+    setForm((current) => ({ ...current, [field]: value }));
     setFormError(null);
     clearAuthError();
   }
 
-  async function handleConsultStudent() {
-    if (!/^\d{8}$/.test(form.dni)) {
+  async function handleConsultStudent(dni = form.dni) {
+    if (!/^\d{8}$/.test(dni)) {
       setFormError('Ingresa un DNI de 8 dígitos para consultar los datos.');
       return;
     }
 
+    const requestId = ++studentLookupRequest.current;
     setIsConsultingStudent(true);
     setFormError(null);
     setStudentDataDni(null);
-    const requestedDni = form.dni;
     try {
-      const student = await consultStudentByDni(requestedDni);
-      setForm((current) => current.dni === requestedDni
+      const student = await consultStudentByDni(dni);
+      if (requestId !== studentLookupRequest.current) return;
+      setForm((current) => current.dni === dni
         ? {
           ...current,
           nombre: student.nombres,
@@ -84,12 +97,16 @@ export default function RegisterScreen() {
           ciclo: student.ciclo,
         }
         : current);
-      setStudentDataDni(requestedDni);
+      setStudentDataDni(dni);
     } catch (lookupError) {
-      setStudentDataDni(null);
-      setFormError(lookupError instanceof Error ? lookupError.message : 'No se pudieron consultar los datos.');
+      if (requestId === studentLookupRequest.current) {
+        setStudentDataDni(null);
+        setFormError(lookupError instanceof Error ? lookupError.message : 'No se pudieron consultar los datos.');
+      }
     } finally {
-      setIsConsultingStudent(false);
+      if (requestId === studentLookupRequest.current) {
+        setIsConsultingStudent(false);
+      }
     }
   }
 
@@ -114,7 +131,12 @@ export default function RegisterScreen() {
     clearAuthError();
     setIsSubmitting(true);
     try {
-      await register(result.data);
+      if (result.data.rol === 'supervisor') {
+        const { facultad: _facultad, ciclo: _ciclo, ...supervisorData } = result.data;
+        await register(supervisorData);
+      } else {
+        await register(result.data);
+      }
       router.replace('/(app)/home');
     } catch {
       // AuthContext exposes the mock storage error for display.
@@ -141,25 +163,54 @@ export default function RegisterScreen() {
     return (
       <View style={styles.field} key={field}>
         <Text style={styles.label}>{label}</Text>
-        <TextInput
-          autoCapitalize={field === 'password' || field === 'dni' ? 'none' : 'words'}
-          onChangeText={(value) => updateField(field, value)}
-          editable={editable}
-          keyboardType={field === 'dni' ? 'number-pad' : 'default'}
-          maxLength={field === 'dni' ? 8 : undefined}
-          placeholder={placeholder}
-          placeholderTextColor="#94a3b8"
-          secureTextEntry={secureTextEntry}
-          style={[styles.input, !editable && styles.readOnlyInput]}
-          value={form[field]}
-        />
+        {field === 'password' ? (
+          <View style={styles.passwordInput}>
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={(value) => updateField(field, value)}
+              editable={editable}
+              placeholder={placeholder}
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={!showPassword}
+              style={styles.passwordTextInput}
+              value={form.password}
+            />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              onPress={() => setShowPassword((current) => !current)}
+              style={styles.passwordVisibilityButton}>
+              <SymbolView
+                name={{
+                  ios: showPassword ? 'eye.slash' : 'eye',
+                  android: showPassword ? 'visibility_off' : 'visibility',
+                  web: showPassword ? 'visibility_off' : 'visibility',
+                }}
+                size={22}
+                tintColor={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TextInput
+            autoCapitalize={field === 'dni' ? 'none' : 'words'}
+            onChangeText={(value) => updateField(field, value)}
+            editable={editable}
+            keyboardType={field === 'dni' ? 'number-pad' : 'default'}
+            maxLength={field === 'dni' ? 8 : undefined}
+            placeholder={placeholder}
+            placeholderTextColor="#94a3b8"
+            style={[styles.input, !editable && styles.readOnlyInput]}
+            value={form[field] ?? ''}
+          />
+        )}
       </View>
     );
   }
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
@@ -183,11 +234,17 @@ export default function RegisterScreen() {
               )}
             </Pressable>
           )}
-          {renderInput('nombre', 'Nombres', 'Tus nombres', false, form.rol !== 'alumno' || studentDataDni === form.dni)}
-          {renderInput('apellido', 'Apellidos', 'Tus apellidos', false, form.rol !== 'alumno' || studentDataDni === form.dni)}
-          {renderInput('facultad', 'Facultad', 'Nombre de la facultad', false, form.rol !== 'alumno' || studentDataDni === form.dni)}
-          {renderInput('carrera', 'Carrera', 'Nombre de la carrera', false, form.rol !== 'alumno' || studentDataDni === form.dni)}
-          {renderInput('ciclo', 'Ciclo', 'Ej. V', false, form.rol !== 'alumno' || studentDataDni === form.dni)}
+          {renderInput('nombre', 'Nombres', 'Tus nombres', false, form.rol === 'supervisor')}
+          {renderInput('apellido', 'Apellidos', 'Tus apellidos', false, form.rol === 'supervisor')}
+          {form.rol === 'alumno' ? (
+            <>
+              {renderInput('facultad', 'Facultad', 'Nombre de la facultad', false, false)}
+              {renderInput('carrera', 'Carrera', 'Nombre de la carrera', false, false)}
+              {renderInput('ciclo', 'Ciclo', 'Ej. V', false, false)}
+            </>
+          ) : (
+            renderInput('carrera', 'Especialidad / Área', 'Tu especialidad o área')
+          )}
           {renderInput('password', 'Contraseña', 'Mínimo 6 caracteres', true)}
 
           <Text style={styles.label}>Tipo de cuenta</Text>
@@ -200,17 +257,23 @@ export default function RegisterScreen() {
                   accessibilityState={{ selected }}
                   key={role}
                   onPress={() => {
-                    updateField('rol', role);
-                    if (role === 'alumno') {
-                      setStudentDataDni(null);
-                      setForm((current) => ({
-                        ...current,
-                        nombre: '',
-                        apellido: '',
-                        facultad: '',
-                        carrera: '',
-                        ciclo: '',
-                      }));
+                    const currentDni = form.dni;
+                    studentLookupRequest.current += 1;
+                    setIsConsultingStudent(false);
+                    setStudentDataDni(null);
+                    setForm((current) => ({
+                      ...current,
+                      rol: role,
+                      nombre: role === 'alumno' ? '' : current.nombre,
+                      apellido: role === 'alumno' ? '' : current.apellido,
+                      facultad: '',
+                      carrera: role === 'alumno' ? '' : current.carrera,
+                      ciclo: '',
+                    }));
+                    setFormError(null);
+                    clearAuthError();
+                    if (role === 'alumno' && /^\d{8}$/.test(currentDni)) {
+                      void handleConsultStudent(currentDni);
                     }
                   }}
                   style={[styles.roleButton, selected && styles.roleButtonSelected]}>
@@ -298,6 +361,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     fontFamily: fonts.body,
     fontSize: 16,
+  },
+  passwordInput: {
+    minHeight: 48,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingLeft: 14,
+    backgroundColor: colors.surfaceMuted,
+  },
+  passwordTextInput: {
+    minHeight: 46,
+    flex: 1,
+    paddingVertical: 0,
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 16,
+  },
+  passwordVisibilityButton: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
   },
   readOnlyInput: { opacity: 0.75 },
   lookupButton: {

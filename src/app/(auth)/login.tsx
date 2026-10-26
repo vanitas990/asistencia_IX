@@ -1,13 +1,16 @@
 import { Link, router } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { SymbolView } from 'expo-symbols';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 
@@ -20,6 +23,7 @@ export default function LoginScreen() {
   const userId = user?.id;
   const [dni, setDni] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -59,73 +63,95 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
-        <Text style={styles.title}>Iniciar sesión</Text>
-        <Text style={styles.subtitle}>Ingresa tu DNI y contraseña.</Text>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
+          <Text style={styles.title}>Iniciar sesión</Text>
+          <Text style={styles.subtitle}>Ingresa tu DNI y contraseña.</Text>
 
-        <Text style={styles.label}>DNI</Text>
-        <TextInput
-          autoCapitalize="none"
-          autoCorrect={false}
-          keyboardType="number-pad"
-          maxLength={8}
-          onChangeText={(value) => {
-            setDni(value.replace(/\D/g, ''));
-            setFormError(null);
-            clearAuthError();
-          }}
-          placeholder="Tu DNI de 8 dígitos"
-          placeholderTextColor="#94a3b8"
-          style={styles.input}
-          value={dni}
-        />
+          <Text style={styles.label}>DNI</Text>
+          <TextInput
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="number-pad"
+            maxLength={8}
+            onChangeText={(value) => {
+              setDni(value.replace(/\D/g, ''));
+              setFormError(null);
+              clearAuthError();
+            }}
+            placeholder="Tu DNI de 8 dígitos"
+            placeholderTextColor="#94a3b8"
+            style={styles.input}
+            value={dni}
+          />
 
-        <Text style={styles.label}>Contraseña</Text>
-        <TextInput
-          autoCapitalize="none"
-          onChangeText={(value) => {
-            setPassword(value);
-            setFormError(null);
-            clearAuthError();
-          }}
-          onSubmitEditing={() => void handleSubmit()}
-          placeholder="Tu contraseña"
-          placeholderTextColor="#94a3b8"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
+          <Text style={styles.label}>Contraseña</Text>
+          <View style={styles.passwordInput}>
+            <TextInput
+              autoCapitalize="none"
+              onChangeText={(value) => {
+                setPassword(value);
+                setFormError(null);
+                clearAuthError();
+              }}
+              onSubmitEditing={() => void handleSubmit()}
+              placeholder="Tu contraseña"
+              placeholderTextColor="#94a3b8"
+              secureTextEntry={!showPassword}
+              style={styles.passwordTextInput}
+              value={password}
+            />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              onPress={() => setShowPassword((current) => !current)}
+              style={styles.passwordVisibilityButton}>
+              <SymbolView
+                name={{
+                  ios: showPassword ? 'eye.slash' : 'eye',
+                  android: showPassword ? 'visibility_off' : 'visibility',
+                  web: showPassword ? 'visibility_off' : 'visibility',
+                }}
+                size={22}
+                tintColor={colors.primary}
+              />
+            </TouchableOpacity>
+          </View>
 
-        {(formError || authError) && <Text style={styles.error}>{formError ?? authError}</Text>}
+          {(formError || authError) && <Text style={styles.error}>{formError ?? authError}</Text>}
 
-        <Pressable
-          accessibilityRole="button"
-          disabled={isSubmitting}
-          onPress={() => void handleSubmit()}
-          style={({ pressed }) => [styles.button, pressed && styles.pressed, isSubmitting && styles.disabled]}>
-          {isSubmitting ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.buttonText}>Iniciar sesión</Text>
-          )}
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            disabled={isSubmitting}
+            onPress={() => void handleSubmit()}
+            style={({ pressed }) => [styles.button, pressed && styles.pressed, isSubmitting && styles.disabled]}>
+            {isSubmitting ? (
+              <ActivityIndicator color="#ffffff" />
+            ) : (
+              <Text style={styles.buttonText}>Iniciar sesión</Text>
+            )}
+          </Pressable>
 
-        <View style={styles.footer}>
-          <Text style={styles.footerText}>¿Aún no tienes cuenta? </Text>
-          <Link href="/(auth)/register" style={styles.link}>
-            Crear cuenta
-          </Link>
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>¿Aún no tienes cuenta? </Text>
+            <Link href="/(auth)/register" style={styles.link}>
+              Crear cuenta
+            </Link>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background },
+  scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
   card: {
     width: '100%',
     maxWidth: 440,
@@ -152,6 +178,31 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
     fontFamily: fonts.body,
     fontSize: 16,
+  },
+  passwordInput: {
+    minHeight: 50,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingLeft: 14,
+    backgroundColor: colors.surfaceMuted,
+  },
+  passwordTextInput: {
+    minHeight: 48,
+    flex: 1,
+    paddingVertical: 0,
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 16,
+  },
+  passwordVisibilityButton: {
+    minWidth: 48,
+    minHeight: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 10,
   },
   error: { color: '#b91c1c', fontSize: 14 },
   button: {

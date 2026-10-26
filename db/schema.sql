@@ -17,9 +17,9 @@ CREATE TABLE public.perfiles (
   rol text NOT NULL CHECK (rol IN ('supervisor', 'alumno')),
   nombre text NOT NULL,
   apellido text NOT NULL,
-  facultad text NOT NULL,
+  facultad text,
   carrera text NOT NULL,
-  ciclo text NOT NULL,
+  ciclo text,
   created_at timestamptz DEFAULT now(),
   password_hash text,
   avatar_url text

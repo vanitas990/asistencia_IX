@@ -28,12 +28,12 @@ export default function EditProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
+    if (!user) return;
     const fields = {
       nombre: nombre.trim(),
       apellido: apellido.trim(),
-      facultad: facultad.trim(),
       carrera: carrera.trim(),
-      ciclo: ciclo.trim(),
+      ...(user.rol === 'alumno' ? { facultad: facultad.trim(), ciclo: ciclo.trim() } : {}),
     };
     if (Object.values(fields).some((value) => !value)) {
       setError('Completa todos los campos antes de guardar.');
@@ -76,9 +76,16 @@ export default function EditProfileScreen() {
 
             <ProfileInput label="Nombre" value={nombre} onChangeText={setNombre} />
             <ProfileInput label="Apellido" value={apellido} onChangeText={setApellido} />
-            <ProfileInput label="Facultad" value={facultad} onChangeText={setFacultad} />
-            <ProfileInput label="Carrera" value={carrera} onChangeText={setCarrera} />
-            <ProfileInput label="Ciclo" value={ciclo} onChangeText={setCiclo} />
+            {user.rol === 'alumno' && (
+              <>
+                <ProfileInput label="Facultad" value={facultad} onChangeText={setFacultad} />
+                <ProfileInput label="Carrera" value={carrera} onChangeText={setCarrera} />
+                <ProfileInput label="Ciclo" value={ciclo} onChangeText={setCiclo} />
+              </>
+            )}
+            {user.rol === 'supervisor' && (
+              <ProfileInput label="Especialidad / Área" value={carrera} onChangeText={setCarrera} />
+            )}
 
             <View style={styles.readOnlyField}>
               <Text style={styles.label}>DNI (no editable)</Text>

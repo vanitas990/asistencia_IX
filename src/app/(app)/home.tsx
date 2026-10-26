@@ -433,7 +433,9 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.listText}>
                   <Text style={styles.listTitle}>{profile.nombre} {profile.apellido}</Text>
-                  <Text style={styles.listSubtitle}>{profile.dni} · {profile.facultad}</Text>
+                  <Text style={styles.listSubtitle}>
+                    {profile.dni}{profile.facultad ? ` · ${profile.facultad}` : ''}
+                  </Text>
                 </View>
                 <Pressable
                   accessibilityRole="button"

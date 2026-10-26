@@ -1,0 +1,3 @@
+ALTER TABLE public.perfiles
+  ALTER COLUMN facultad DROP NOT NULL,
+  ALTER COLUMN ciclo DROP NOT NULL;

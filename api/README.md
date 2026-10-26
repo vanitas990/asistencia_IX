@@ -53,6 +53,9 @@ existentes deben tener su DNI único cargado para iniciar sesión con el esquema
 `UNHEVAL_API_URL` no está configurada, la API devuelve los datos mock documentados para
 probar el flujo directamente como JSON. En Render, `UNHEVAL_API_URL` debe ser la URL base
 externa; el backend añade el DNI como segmento final.
+Los perfiles de supervisor guardan `facultad` y `ciclo` como `NULL`. Si la base existente
+mantiene esas columnas como `NOT NULL`, ejecuta manualmente
+`api/migrations/005-allow-null-supervisor-academics.sql` en Neon antes de registrar supervisores.
 
 Las operaciones de vinculación y QR requieren `Authorization: Bearer <access_token>`.
 Cada solicitud valida el token, vuelve a cargar el perfil vigente y autoriza según su rol:

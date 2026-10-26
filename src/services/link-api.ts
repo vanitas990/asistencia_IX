@@ -14,9 +14,9 @@ const linkedProfileSchema = z.object({
   nombre: z.string(),
   apellido: z.string(),
   dni: z.string().regex(/^\d{8}$/),
-  facultad: z.string(),
+  facultad: z.string().nullable(),
   carrera: z.string(),
-  ciclo: z.string(),
+  ciclo: z.string().nullable(),
 });
 
 const pendingRequestSchema = z.object({
@@ -28,7 +28,7 @@ const pendingRequestSchema = z.object({
   created_at: z.string().nullable().optional(),
   supervisor_nombre: z.string(),
   supervisor_apellido: z.string(),
-  supervisor_facultad: z.string(),
+  supervisor_facultad: z.string().nullable(),
 });
 
 const qrSchema = z.object({

@@ -12,9 +12,9 @@ const avatarSchema = z.object({
 const editProfileSchema = z.object({
   nombre: z.string().trim().min(1).max(100),
   apellido: z.string().trim().min(1).max(100),
-  facultad: z.string().trim().min(1).max(150),
+  facultad: z.string().trim().min(1).max(150).optional(),
   carrera: z.string().trim().min(1).max(150),
-  ciclo: z.string().trim().min(1).max(30),
+  ciclo: z.string().trim().min(1).max(30).optional(),
 }).strict();
 
 router.use(authenticate);
@@ -102,9 +102,9 @@ router.put('/editar', async (request, response, next) => {
       SET
         nombre = ${parsed.data.nombre},
         apellido = ${parsed.data.apellido},
-        facultad = ${parsed.data.facultad},
+        facultad = ${parsed.data.facultad ?? null},
         carrera = ${parsed.data.carrera},
-        ciclo = ${parsed.data.ciclo}
+        ciclo = ${parsed.data.ciclo ?? null}
       WHERE id = ${request.auth.id}
       RETURNING
         id,

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { sql } from '../db.js';
 import { authRateLimit } from '../middleware/auth-rate-limit.js';
+import { registerSchema } from '../schemas/auth.js';
 import { lookupUniversityStudent, StudentLookupError } from '../utils/estudiantes.js';
 import {
   createAccessToken,
@@ -14,17 +15,6 @@ import {
 } from '../utils/auth.js';
 
 const router = Router();
-
-const registerSchema = z.object({
-  dni: z.string().regex(/^\d{8}$/),
-  nombre: z.string().trim().min(1).max(100),
-  apellido: z.string().trim().min(1).max(100),
-  facultad: z.string().trim().min(1).max(150),
-  carrera: z.string().trim().min(1).max(150),
-  ciclo: z.string().trim().min(1).max(30),
-  rol: z.enum(['supervisor', 'alumno']),
-  password: z.string().min(6).max(128),
-}).strict();
 
 const loginSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
@@ -77,9 +67,9 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           ${parsed.data.rol},
           ${studentRecord?.nombres ?? parsed.data.nombre},
           ${studentRecord?.apellidos ?? parsed.data.apellido},
-          ${studentRecord?.facultad ?? parsed.data.facultad},
+          ${parsed.data.rol === 'supervisor' ? null : studentRecord.facultad},
           ${studentRecord?.carrera ?? parsed.data.carrera},
-          ${studentRecord?.ciclo ?? parsed.data.ciclo},
+          ${parsed.data.rol === 'supervisor' ? null : studentRecord.ciclo},
           ${passwordHash}
         )
         RETURNING
@@ -111,6 +101,15 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
       response.status(error.status).json({ error: error.message });
       return;
     }
+    console.error('Registration request failed:', {
+      name: error?.name ?? 'UnknownError',
+      message: error?.message,
+      code: error?.code,
+      detail: error?.detail,
+      hint: error?.hint,
+      constraint: error?.constraint,
+      stack: error?.stack,
+    });
     next(error);
   }
 });

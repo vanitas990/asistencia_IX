@@ -64,7 +64,7 @@ export default function RequestsScreen() {
                 <Text style={styles.requestName}>
                   {request.supervisor_nombre} {request.supervisor_apellido}
                 </Text>
-                <Text style={styles.requestMeta}>{request.supervisor_institucion}</Text>
+                <Text style={styles.requestMeta}>{request.supervisor_facultad}</Text>
                 {request.created_at && (
                   <Text style={styles.requestMeta}>
                     Solicitud recibida {new Date(request.created_at).toLocaleDateString()}

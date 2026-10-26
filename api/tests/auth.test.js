@@ -6,7 +6,6 @@ import {
   createAccessToken,
   createRefreshToken,
   generateAuthUserId,
-  generateCodigo6,
   hashPassword,
   verifyAccessToken,
   verifyPassword,
@@ -23,17 +22,16 @@ test('hashes passwords and verifies the original password', async () => {
   assert.equal(await verifyPassword('wrong-password', passwordHash), false);
 });
 
-test('generates UUIDs and six-digit numeric codes', () => {
+test('generates UUIDs for authentication identities', () => {
   assert.match(generateAuthUserId(), /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
-  assert.match(generateCodigo6(), /^\d{6}$/);
 });
 
-test('signs access tokens with the expected identity claims and lifetime', () => {
+test('signs access tokens with DNI identity claims and lifetime', () => {
   const authUserId = generateAuthUserId();
   const token = createAccessToken({
     auth_user_id: authUserId,
-    codigo_6: '123456',
-    rol: 'practicante',
+    dni: '12345678',
+    rol: 'alumno',
   });
   const decoded = jwt.verify(token, process.env.JWT_SECRET, {
     algorithms: ['HS256'],
@@ -42,8 +40,8 @@ test('signs access tokens with the expected identity claims and lifetime', () =>
   });
 
   assert.equal(decoded.sub, authUserId);
-  assert.equal(decoded.codigo_6, '123456');
-  assert.equal(decoded.rol, 'practicante');
+  assert.equal(decoded.dni, '12345678');
+  assert.equal(decoded.rol, 'alumno');
   assert.equal(decoded.token_type, 'access');
   assert.equal(decoded.exp - decoded.iat, 60 * 60);
   assert.equal(verifyAccessToken(token).sub, authUserId);
@@ -52,8 +50,8 @@ test('signs access tokens with the expected identity claims and lifetime', () =>
 test('creates 30-day refresh tokens and rejects access tokens as refresh tokens', () => {
   const profile = {
     auth_user_id: generateAuthUserId(),
-    codigo_6: '123456',
-    rol: 'practicante',
+    dni: '12345678',
+    rol: 'alumno',
   };
   const refreshToken = createRefreshToken(profile);
   const refreshClaims = verifyRefreshToken(refreshToken);

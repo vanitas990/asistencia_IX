@@ -13,21 +13,22 @@ const linkedProfileSchema = z.object({
   id: positiveIntegerSchema,
   nombre: z.string(),
   apellido: z.string(),
-  codigo_6: z.string().trim().regex(/^\d{6}$/),
-  curso_carrera: z.string(),
-  institucion: z.string(),
+  dni: z.string().regex(/^\d{8}$/),
+  facultad: z.string(),
+  carrera: z.string(),
+  ciclo: z.string(),
 });
 
 const pendingRequestSchema = z.object({
   id: positiveIntegerSchema,
   supervisor_id: positiveIntegerSchema,
-  practicante_id: positiveIntegerSchema,
+  alumno_id: positiveIntegerSchema,
   estado: z.literal('pendiente'),
   metodo: z.enum(['id', 'qr']),
   created_at: z.string().nullable().optional(),
   supervisor_nombre: z.string(),
   supervisor_apellido: z.string(),
-  supervisor_institucion: z.string(),
+  supervisor_facultad: z.string(),
 });
 
 const qrSchema = z.object({
@@ -101,7 +102,7 @@ export function getPendingRequests(
 
 export function requestLink(
   apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
-  codigo6: string,
+  dni: string,
 ) {
   return requestData(
     apiFetch,
@@ -109,7 +110,7 @@ export function requestLink(
     z.object({
       id: positiveIntegerSchema,
       supervisor_id: positiveIntegerSchema,
-      practicante_id: positiveIntegerSchema,
+      alumno_id: positiveIntegerSchema,
       estado: z.literal('pendiente'),
       metodo: z.literal('id'),
       created_at: z.string(),
@@ -117,7 +118,7 @@ export function requestLink(
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ codigo_6_practicante: codigo6 }),
+      body: JSON.stringify({ dni_alumno: dni }),
     },
   );
 }
@@ -132,7 +133,7 @@ export function acceptLink(
     z.object({
       id: positiveIntegerSchema,
       supervisor_id: positiveIntegerSchema,
-      practicante_id: positiveIntegerSchema,
+      alumno_id: positiveIntegerSchema,
       estado: z.literal('activo'),
       metodo: z.enum(['id', 'qr']),
       created_at: z.string(),
@@ -178,8 +179,8 @@ export function getOwnQr(
   return requestData(apiFetch, '/api/qr/mi-qr', qrSchema);
 }
 
-export function getPractitionerQr(
+export function getAlumnoQr(
   apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
 ) {
-  return requestData(apiFetch, '/api/qr/mi-qr-practicante', qrSchema);
+  return requestData(apiFetch, '/api/qr/mi-qr-alumno', qrSchema);
 }

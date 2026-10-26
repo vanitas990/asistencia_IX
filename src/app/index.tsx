@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { cardElevation, colors, fonts } from '@/theme';
 
 export default function WelcomeScreen() {
   const { user, isLoading, authError, clearAuthError } = useAuth();
@@ -14,10 +15,10 @@ export default function WelcomeScreen() {
     }
   }, [isLoading, userId]);
 
-  if (isLoading || user) {
+  if (isLoading || userId) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color="#0f172a" />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -25,12 +26,10 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.content}>
-        {/* Logo / Marca */}
         <View style={styles.mark}>
-          <Text style={styles.markText}>A</Text>
+          <Text style={styles.markText}>⌖</Text>
         </View>
 
-        {/* Textos de bienvenida */}
         <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
         <Text style={styles.title}>Tu asistencia,{"\n"}más simple.</Text>
         <Text style={styles.subtitle}>
@@ -43,16 +42,17 @@ export default function WelcomeScreen() {
           </Pressable>
         )}
 
-        {/* Botones de acción sin conflictos de Link */}
         <View style={styles.buttonContainer}>
-          <Pressable 
+          <Pressable
+            accessibilityRole="button"
             style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
             onPress={() => router.push('/(auth)/login')}
           >
             <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
           </Pressable>
 
-          <Pressable 
+          <Pressable
+            accessibilityRole="button"
             style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
             onPress={() => router.push('/(auth)/register')}
           >
@@ -65,62 +65,65 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { 
-    flex: 1, 
-    justifyContent: 'center', 
-    padding: 24, 
-    backgroundColor: '#f8fafc' 
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 24,
+    backgroundColor: colors.background,
   },
-  content: { 
-    width: '100%', 
-    maxWidth: 440, 
-    alignSelf: 'center', 
-    alignItems: 'center', 
+  content: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    alignItems: 'center',
+    padding: 26,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    ...cardElevation,
   },
   mark: {
     width: 76,
     height: 76,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 24,
-    backgroundColor: '#dbeafe',
-    marginBottom: 16,
+    borderRadius: 38,
+    borderWidth: 1,
+    borderColor: colors.earth,
+    backgroundColor: colors.earthLight,
+    marginBottom: 20,
   },
-  markText: { color: '#1d4ed8', fontSize: 36, fontWeight: '800' },
-  eyebrow: { color: '#2563eb', fontSize: 12, fontWeight: '700', letterSpacing: 1.7, marginBottom: 8 },
-  title: { color: '#0f172a', fontSize: 32, fontWeight: '800', textAlign: 'center', lineHeight: 38, marginBottom: 12 },
-  subtitle: { color: '#64748b', fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 32 },
-  
+  markText: { color: colors.primary, fontFamily: fonts.display, fontSize: 43 },
+  eyebrow: { color: colors.earth, fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 1.7, marginBottom: 8 },
+  title: { color: colors.text, fontFamily: fonts.display, fontSize: 32, textAlign: 'center', lineHeight: 40, marginBottom: 12 },
+  subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15, lineHeight: 23, textAlign: 'center', marginBottom: 30 },
   buttonContainer: {
     width: '100%',
     gap: 12,
   },
-
-  /* Botón Principal: Azul / Slate Oscuro que sí o sí tiene que verse sólido */
   primaryButton: {
     height: 54,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 16,
-    backgroundColor: '#2563eb', // Fondo oscuro potente
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    ...cardElevation,
   },
-  primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
-
-  /* Botón Secundario: Fondo con borde bien marcado */
+  primaryButtonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 16 },
   secondaryButton: {
     height: 54,
     width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#cbd5e1',
-    borderRadius: 16,
-    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
   },
-  secondaryButtonText: { color: '#334155', fontSize: 16, fontWeight: '700' },
-
+  secondaryButtonText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 16 },
   pressed: { opacity: 0.8 },
-  error: { color: '#b91c1c', textAlign: 'center', fontSize: 14, marginBottom: 16 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
+  error: { color: colors.danger, fontFamily: fonts.body, textAlign: 'center', fontSize: 14, marginBottom: 16 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
 });

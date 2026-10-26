@@ -8,7 +8,7 @@ const apiResponseSchema = z.object({
     access_token: z.string().min(1),
     refresh_token: z.string().min(1),
     user: perfilSchema,
-    codigo_6: z.string().regex(/^\d{6}$/),
+    dni: z.string().regex(/^\d{8}$/),
   }),
 });
 
@@ -27,7 +27,6 @@ export interface AuthApiResult {
   accessToken: string;
   refreshToken: string;
   user: z.infer<typeof perfilSchema>;
-  codigo_6: string;
 }
 
 export interface RefreshedSession {
@@ -109,7 +108,6 @@ async function postAuthRequest(
     accessToken: data.access_token,
     refreshToken: data.refresh_token,
     user: data.user,
-    codigo_6: data.codigo_6,
   };
 }
 

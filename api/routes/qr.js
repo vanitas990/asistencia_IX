@@ -7,16 +7,16 @@ import { authenticate, requireRole } from '../middleware/authenticate.js';
 const router = Router();
 
 router.get(
-  '/mi-qr-practicante',
+  '/mi-qr-alumno',
   authenticate,
-  requireRole('practicante'),
+  requireRole('alumno'),
   async (request, response, next) => {
     try {
       const token = randomBytes(32).toString('base64url');
       const rows = await sql`
-        INSERT INTO qr_practicante (practicante_id, token, activo)
+        INSERT INTO qr_alumno (alumno_id, token, activo)
         VALUES (${request.auth.id}, ${token}, true)
-        ON CONFLICT (practicante_id)
+        ON CONFLICT (alumno_id)
         DO UPDATE SET activo = true
         RETURNING token, activo
       `;

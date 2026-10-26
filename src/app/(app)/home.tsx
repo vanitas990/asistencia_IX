@@ -41,7 +41,7 @@ export default function HomeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
-  const [codigo6, setCodigo6] = useState('');
+  const [dniAlumno, setDniAlumno] = useState('');
   const [activeLinks, setActiveLinks] = useState<LinkedProfile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
   const userRole = user?.rol;
@@ -59,7 +59,7 @@ export default function HomeScreen() {
     try {
       const [links, requests] = await Promise.all([
         getActiveLinks(apiFetch),
-        userRole === 'practicante' ? getPendingRequests(apiFetch) : Promise.resolve([]),
+        userRole === 'alumno' ? getPendingRequests(apiFetch) : Promise.resolve([]),
       ]);
       setActiveLinks(links);
       setPendingRequests(requests);
@@ -110,7 +110,7 @@ export default function HomeScreen() {
   async function handleCopyCode() {
     if (!user) return;
     try {
-      await Clipboard.setStringAsync(user.codigo_6);
+      await Clipboard.setStringAsync(user.dni);
       setCopyStatus('copied');
     } catch (copyError) {
       console.error('No se pudo copiar el código del perfil.', copyError);
@@ -126,8 +126,8 @@ export default function HomeScreen() {
   }, [loadHomeData, userRole]);
 
   async function handleAddPractitioner() {
-    if (!/^\d{6}$/.test(codigo6)) {
-      setError('Ingresa un código de practicante de 6 dígitos.');
+    if (!/^\d{8}$/.test(dniAlumno)) {
+      setError('Ingresa el DNI del alumno (8 dígitos).');
       return;
     }
 
@@ -135,9 +135,9 @@ export default function HomeScreen() {
     setError(null);
     setNotice(null);
     try {
-      await requestLink(apiFetch, codigo6);
-      setCodigo6('');
-      setNotice('Solicitud enviada. El practicante debe aceptarla desde su cuenta.');
+      await requestLink(apiFetch, dniAlumno);
+      setDniAlumno('');
+      setNotice('Solicitud enviada. El alumno debe aceptarla desde su cuenta.');
       await loadHomeData();
     } catch (requestError) {
       console.error('No se pudo enviar la solicitud de vinculación.', requestError);
@@ -237,14 +237,14 @@ export default function HomeScreen() {
           </Pressable>
           <View style={styles.welcomeCopy}>
             <Text style={styles.welcomeName} numberOfLines={1}>{user.nombre} {user.apellido}</Text>
-            <Text style={styles.welcomeRole}>{isSupervisor ? 'Supervisor' : 'Practicante'}</Text>
+            <Text style={styles.welcomeRole}>{isSupervisor ? 'Supervisor' : 'Alumno'}</Text>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Copiar código ${user.codigo_6}`}
+              accessibilityLabel={`Copiar DNI ${user.dni}`}
               onPress={() => void handleCopyCode()}
               style={({ pressed }) => [styles.codeCopy, pressed && styles.pressed]}>
               <Text style={styles.codeCopyIcon}>▢</Text>
-              <Text style={styles.codeCopyText}>Código: {user.codigo_6}</Text>
+              <Text style={styles.codeCopyText}>DNI: {user.dni}</Text>
               <Text style={styles.copyFeedback}>
                 {copyStatus === 'copied' ? 'Copiado' : copyStatus === 'failed' ? 'Error' : ''}
               </Text>
@@ -264,17 +264,17 @@ export default function HomeScreen() {
         {isSupervisor ? (
           <View style={[styles.actionGrid, isNarrowScreen && styles.actionGridNarrow]}>
             <View style={[styles.card, styles.gridCard, isNarrowScreen && styles.gridCardNarrow]}>
-              <Text style={styles.sectionTitle}>Añadir practicante</Text>
-              <Text style={styles.helpText}>Ingresa el código de seis dígitos del practicante.</Text>
+              <Text style={styles.sectionTitle}>Añadir alumno</Text>
+              <Text style={styles.helpText}>Ingresa el DNI de 8 dígitos del alumno.</Text>
               <TextInput
-                accessibilityLabel="Código de 6 dígitos del practicante"
+                accessibilityLabel="DNI de 8 dígitos del alumno"
                 keyboardType="number-pad"
-                maxLength={6}
-                onChangeText={(value) => setCodigo6(value.replace(/\D/g, ''))}
-                placeholder="Código de 6 dígitos"
+                maxLength={8}
+                onChangeText={(value) => setDniAlumno(value.replace(/\D/g, ''))}
+                placeholder="DNI del alumno"
                 placeholderTextColor="#94a3b8"
                 style={styles.input}
-                value={codigo6}
+                value={dniAlumno}
               />
               <ActionButton
                 disabled={isSubmitting}
@@ -286,7 +286,7 @@ export default function HomeScreen() {
 
             <View style={[styles.card, styles.gridCard, isNarrowScreen && styles.gridCardNarrow]}>
               <Text style={styles.sectionTitle}>Mi Código QR</Text>
-              <Text style={styles.helpText}>Muestra el QR para que tus practicantes marquen asistencia.</Text>
+              <Text style={styles.helpText}>Muestra el QR para que tus alumnos marquen asistencia.</Text>
               <ActionButton
                 disabled={false}
                 label="Ver mi QR"
@@ -297,17 +297,17 @@ export default function HomeScreen() {
             </View>
             <View style={[styles.card, styles.gridCard, isNarrowScreen && styles.gridCardNarrow]}>
               <Text style={styles.sectionTitle}>Agregar por QR</Text>
-              <Text style={styles.helpText}>Escanea el código QR de un practicante para vincularlo directamente.</Text>
+              <Text style={styles.helpText}>Escanea el código QR de un alumno para vincularlo directamente.</Text>
               <ActionButton
                 disabled={false}
-                label="Escanear QR de practicante"
+                label="Escanear QR de alumno"
                 onPress={() => router.push({ pathname: '/(app)/scan', params: { mode: 'link' } })}
                 icon="⌗"
               />
             </View>
             <View style={[styles.card, styles.gridCard, isNarrowScreen && styles.gridCardNarrow]}>
               <View style={styles.sectionHeading}>
-                <Text style={styles.sectionTitle}>Mis Practicantes</Text>
+                <Text style={styles.sectionTitle}>Mis Alumnos</Text>
                 <Text style={styles.countBadge}>{activeLinks.length}</Text>
               </View>
               <View style={styles.gridEmptyState}>
@@ -316,13 +316,13 @@ export default function HomeScreen() {
                   {isLoadingData
                     ? 'Cargando vinculaciones...'
                     : activeLinks.length
-                      ? `${activeLinks.length} practicante${activeLinks.length === 1 ? '' : 's'} vinculado${activeLinks.length === 1 ? '' : 's'}`
-                      : 'Aún no tienes practicantes vinculados.'}
+                      ? `${activeLinks.length} alumno${activeLinks.length === 1 ? '' : 's'} vinculado${activeLinks.length === 1 ? '' : 's'}`
+                      : 'Aún no tienes alumnos vinculados.'}
                 </Text>
               </View>
               <ActionButton
                 disabled={false}
-                label="Ver mis practicantes"
+                label="Ver mis alumnos"
                 onPress={() => router.push('/(app)/linked')}
                 secondary
                 icon="→"
@@ -341,7 +341,7 @@ export default function HomeScreen() {
                     <Text style={styles.listTitle}>
                       {request.supervisor_nombre} {request.supervisor_apellido}
                     </Text>
-                    <Text style={styles.listSubtitle}>{request.supervisor_institucion}</Text>
+                    <Text style={styles.listSubtitle}>{request.supervisor_facultad}</Text>
                   </View>
                   <ActionButton
                     disabled={isSubmitting}
@@ -395,7 +395,7 @@ export default function HomeScreen() {
                 />
                 <QuickOption
                   icon="⇄"
-                  label="Mis practicantes"
+                  label="Mis alumnos"
                   onPress={() => router.push('/(app)/linked')}
                 />
               </>
@@ -419,7 +419,7 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <View style={styles.sectionHeading}>
             <Text style={styles.sectionTitle}>
-              {isSupervisor ? 'Mis Practicantes' : 'Supervisores vinculados'}
+              {isSupervisor ? 'Mis Alumnos' : 'Supervisores vinculados'}
             </Text>
             <Text style={styles.countBadge}>{activeLinks.length}</Text>
           </View>
@@ -433,7 +433,7 @@ export default function HomeScreen() {
                 </View>
                 <View style={styles.listText}>
                   <Text style={styles.listTitle}>{profile.nombre} {profile.apellido}</Text>
-                  <Text style={styles.listSubtitle}>{profile.codigo_6} · {profile.institucion}</Text>
+                  <Text style={styles.listSubtitle}>{profile.dni} · {profile.facultad}</Text>
                 </View>
                 <Pressable
                   accessibilityRole="button"
@@ -457,7 +457,7 @@ export default function HomeScreen() {
           )}
           <ActionButton
             disabled={false}
-            label={isSupervisor ? 'Ver mis practicantes' : 'Ver supervisores vinculados'}
+            label={isSupervisor ? 'Ver mis alumnos' : 'Ver supervisores vinculados'}
             onPress={() => router.push('/(app)/linked')}
             secondary
           />

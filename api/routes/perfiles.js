@@ -12,8 +12,9 @@ const avatarSchema = z.object({
 const editProfileSchema = z.object({
   nombre: z.string().trim().min(1).max(100),
   apellido: z.string().trim().min(1).max(100),
-  curso_carrera: z.string().trim().min(1).max(150),
-  institucion: z.string().trim().min(1).max(150),
+  facultad: z.string().trim().min(1).max(150),
+  carrera: z.string().trim().min(1).max(150),
+  ciclo: z.string().trim().min(1).max(30),
 }).strict();
 
 router.use(authenticate);
@@ -24,12 +25,13 @@ router.get('/yo', async (request, response, next) => {
       SELECT
         id,
         auth_user_id::text AS auth_user_id,
-        codigo_6,
+        dni,
         rol,
         nombre,
         apellido,
-        curso_carrera,
-        institucion,
+        facultad,
+        carrera,
+        ciclo,
         created_at::text AS created_at,
         avatar_url
       FROM perfiles
@@ -67,12 +69,13 @@ router.patch('/avatar', async (request, response, next) => {
       RETURNING
         id,
         auth_user_id::text AS auth_user_id,
-        codigo_6,
+        dni,
         rol,
         nombre,
         apellido,
-        curso_carrera,
-        institucion,
+        facultad,
+        carrera,
+        ciclo,
         created_at::text AS created_at,
         avatar_url
     `;
@@ -99,18 +102,20 @@ router.put('/editar', async (request, response, next) => {
       SET
         nombre = ${parsed.data.nombre},
         apellido = ${parsed.data.apellido},
-        curso_carrera = ${parsed.data.curso_carrera},
-        institucion = ${parsed.data.institucion}
+        facultad = ${parsed.data.facultad},
+        carrera = ${parsed.data.carrera},
+        ciclo = ${parsed.data.ciclo}
       WHERE id = ${request.auth.id}
       RETURNING
         id,
         auth_user_id::text AS auth_user_id,
-        codigo_6,
+        dni,
         rol,
         nombre,
         apellido,
-        curso_carrera,
-        institucion,
+        facultad,
+        carrera,
+        ciclo,
         created_at::text AS created_at,
         avatar_url
     `;

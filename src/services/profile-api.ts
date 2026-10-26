@@ -4,7 +4,7 @@ import { perfilSchema } from '@/schemas/auth.schema';
 import { ApiRequestError } from '@/services/auth-api';
 import type { User } from '@/types';
 
-export type EditableProfile = Pick<User, 'nombre' | 'apellido' | 'curso_carrera' | 'institucion'>;
+export type EditableProfile = Pick<User, 'nombre' | 'apellido' | 'facultad' | 'carrera' | 'ciclo'>;
 
 async function parseProfileResponse(response: Response, fallbackMessage: string): Promise<User> {
   let body: unknown;

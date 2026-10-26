@@ -10,20 +10,20 @@ const integerSchema = z.union([
 
 const attendanceSchema = z.object({
   id: integerSchema,
-  practicante_id: integerSchema,
+  alumno_id: integerSchema,
   supervisor_id: integerSchema,
   tipo: z.enum(['entrada', 'salida']),
   timestamp: z.string(),
-  practicante_nombre: z.string().optional(),
-  practicante_apellido: z.string().optional(),
-  practicante_codigo_6: z.string().optional(),
+  alumno_nombre: z.string().optional(),
+  alumno_apellido: z.string().optional(),
+  alumno_dni: z.string().optional(),
   supervisor_nombre: z.string().optional(),
   supervisor_apellido: z.string().optional(),
 });
 
 const markResponseSchema = z.object({
   id: integerSchema,
-  practicante_id: integerSchema,
+  alumno_id: integerSchema,
   supervisor_id: integerSchema,
   qr_token: z.string(),
   tipo: z.enum(['entrada', 'salida']),
@@ -102,7 +102,7 @@ export async function linkByQr(
     z.object({
       id: integerSchema,
       supervisor_id: integerSchema,
-      practicante_id: integerSchema,
+      alumno_id: integerSchema,
       estado: z.literal('activo'),
       metodo: z.literal('qr'),
       created_at: z.string().nullable().optional(),
@@ -113,10 +113,10 @@ export async function linkByQr(
 export async function getAttendanceHistory(
   apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
   limit = 50,
-  practitionerId?: number,
+  alumnoId?: number,
 ) {
   const params = new URLSearchParams({ limit: String(limit), offset: '0' });
-  if (practitionerId !== undefined) params.set('practicante_id', String(practitionerId));
+  if (alumnoId !== undefined) params.set('alumno_id', String(alumnoId));
   const response = await apiFetch(`/api/asistencias?${params.toString()}`);
   return parseApiResponse(response, z.object({
     data: z.array(attendanceSchema),

@@ -43,7 +43,7 @@ export default function ScanScreen() {
         await linkByQr(apiFetch, result.data.trim());
         Alert.alert(
           'Vinculación completada',
-          'El practicante fue agregado a tus vinculaciones.',
+          'El alumno fue agregado a tus vinculaciones.',
           [{ text: 'Aceptar', onPress: () => router.back() }],
         );
       }
@@ -116,7 +116,7 @@ export default function ScanScreen() {
         </Pressable>
         <View style={styles.instructions}>
           <Text style={styles.title}>
-            {mode === 'attendance' ? 'Marcar asistencia' : 'Agregar practicante'}
+            {mode === 'attendance' ? 'Marcar asistencia' : 'Agregar alumno'}
           </Text>
           <Text style={styles.message}>Coloca el código QR dentro del recuadro.</Text>
         </View>

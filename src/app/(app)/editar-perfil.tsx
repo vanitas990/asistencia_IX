@@ -21,8 +21,9 @@ export default function EditProfileScreen() {
   const { user, updateProfile } = useAuth();
   const [nombre, setNombre] = useState(user?.nombre ?? '');
   const [apellido, setApellido] = useState(user?.apellido ?? '');
-  const [cursoCarrera, setCursoCarrera] = useState(user?.curso_carrera ?? '');
-  const [institucion, setInstitucion] = useState(user?.institucion ?? '');
+  const [facultad, setFacultad] = useState(user?.facultad ?? '');
+  const [carrera, setCarrera] = useState(user?.carrera ?? '');
+  const [ciclo, setCiclo] = useState(user?.ciclo ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,8 +31,9 @@ export default function EditProfileScreen() {
     const fields = {
       nombre: nombre.trim(),
       apellido: apellido.trim(),
-      curso_carrera: cursoCarrera.trim(),
-      institucion: institucion.trim(),
+      facultad: facultad.trim(),
+      carrera: carrera.trim(),
+      ciclo: ciclo.trim(),
     };
     if (Object.values(fields).some((value) => !value)) {
       setError('Completa todos los campos antes de guardar.');
@@ -74,16 +76,17 @@ export default function EditProfileScreen() {
 
             <ProfileInput label="Nombre" value={nombre} onChangeText={setNombre} />
             <ProfileInput label="Apellido" value={apellido} onChangeText={setApellido} />
-            <ProfileInput label="Curso o carrera" value={cursoCarrera} onChangeText={setCursoCarrera} />
-            <ProfileInput label="Institución" value={institucion} onChangeText={setInstitucion} />
+            <ProfileInput label="Facultad" value={facultad} onChangeText={setFacultad} />
+            <ProfileInput label="Carrera" value={carrera} onChangeText={setCarrera} />
+            <ProfileInput label="Ciclo" value={ciclo} onChangeText={setCiclo} />
 
             <View style={styles.readOnlyField}>
-              <Text style={styles.label}>Código de usuario (no editable)</Text>
-              <Text selectable style={styles.readOnlyValue}>{user.codigo_6}</Text>
+              <Text style={styles.label}>DNI (no editable)</Text>
+              <Text selectable style={styles.readOnlyValue}>{user.dni}</Text>
             </View>
             <View style={styles.readOnlyField}>
               <Text style={styles.label}>Rol (no editable)</Text>
-              <Text style={styles.readOnlyValue}>{user.rol === 'supervisor' ? 'Supervisor' : 'Practicante'}</Text>
+              <Text style={styles.readOnlyValue}>{user.rol === 'supervisor' ? 'Supervisor' : 'Alumno'}</Text>
             </View>
 
             {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

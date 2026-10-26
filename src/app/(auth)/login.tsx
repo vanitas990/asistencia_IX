@@ -13,12 +13,12 @@ import {
 
 import { useAuth } from '@/context/AuthContext';
 import { loginSchema, type LoginFormData } from '@/schemas/auth.schema';
-import { colors, fonts } from '@/theme';
+import { cardElevation, colors, fonts } from '@/theme';
 
 export default function LoginScreen() {
   const { login, authError, clearAuthError, isLoading, user } = useAuth();
   const userId = user?.id;
-  const [codigo, setCodigo] = useState('');
+  const [dni, setDni] = useState('');
   const [password, setPassword] = useState('');
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -30,7 +30,7 @@ export default function LoginScreen() {
   }, [isLoading, userId]);
 
   async function handleSubmit() {
-    const result = loginSchema.safeParse({ codigo_6: codigo, password } satisfies LoginFormData);
+    const result = loginSchema.safeParse({ dni, password } satisfies LoginFormData);
     if (!result.success) {
       setFormError(result.error.issues[0]?.message ?? 'Revisa los datos ingresados.');
       return;
@@ -64,23 +64,23 @@ export default function LoginScreen() {
       <View style={styles.card}>
         <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
         <Text style={styles.title}>Iniciar sesión</Text>
-        <Text style={styles.subtitle}>Ingresa tu código de acceso y contraseña.</Text>
+        <Text style={styles.subtitle}>Ingresa tu DNI y contraseña.</Text>
 
-        <Text style={styles.label}>Código de 6 caracteres</Text>
+        <Text style={styles.label}>DNI</Text>
         <TextInput
           autoCapitalize="none"
           autoCorrect={false}
           keyboardType="number-pad"
-          maxLength={6}
+          maxLength={8}
           onChangeText={(value) => {
-            setCodigo(value.toUpperCase());
+            setDni(value.replace(/\D/g, ''));
             setFormError(null);
             clearAuthError();
           }}
-          placeholder="Tu ID de 6 caracteres"
+          placeholder="Tu DNI de 8 dígitos"
           placeholderTextColor="#94a3b8"
           style={styles.input}
-          value={codigo}
+          value={dni}
         />
 
         <Text style={styles.label}>Contraseña</Text>
@@ -126,7 +126,18 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: colors.background },
-  card: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 12 },
+  card: {
+    width: '100%',
+    maxWidth: 440,
+    alignSelf: 'center',
+    gap: 12,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    ...cardElevation,
+  },
   eyebrow: { color: colors.earth, fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 1.5 },
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 30 },
   subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15, marginBottom: 12 },
@@ -135,10 +146,10 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
     color: colors.text,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceMuted,
     fontFamily: fonts.body,
     fontSize: 16,
   },
@@ -148,8 +159,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.primary,
-    borderRadius: 14,
+    borderRadius: 12,
     marginTop: 8,
+    ...cardElevation,
   },
   buttonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 16 },
   pressed: { opacity: 0.85 },

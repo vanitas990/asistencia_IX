@@ -3,11 +3,11 @@ import { z } from 'zod';
 
 import { sql } from '../db.js';
 import { authRateLimit } from '../middleware/auth-rate-limit.js';
+import { lookupUniversityStudent, StudentLookupError } from '../utils/estudiantes.js';
 import {
   createAccessToken,
   createRefreshToken,
   generateAuthUserId,
-  generateCodigo6,
   hashPassword,
   verifyPassword,
   verifyRefreshToken,
@@ -16,16 +16,18 @@ import {
 const router = Router();
 
 const registerSchema = z.object({
+  dni: z.string().regex(/^\d{8}$/),
   nombre: z.string().trim().min(1).max(100),
   apellido: z.string().trim().min(1).max(100),
-  curso_carrera: z.string().trim().min(1).max(150),
-  institucion: z.string().trim().min(1).max(150),
-  rol: z.enum(['supervisor', 'practicante']),
+  facultad: z.string().trim().min(1).max(150),
+  carrera: z.string().trim().min(1).max(150),
+  ciclo: z.string().trim().min(1).max(30),
+  rol: z.enum(['supervisor', 'alumno']),
   password: z.string().min(6).max(128),
 }).strict();
 
 const loginSchema = z.object({
-  codigo_6: z.string().regex(/^\d{6}$/),
+  dni: z.string().regex(/^\d{8}$/),
   password: z.string().min(1).max(128),
 }).strict();
 
@@ -38,7 +40,7 @@ function createAuthResponse(profile) {
     access_token: createAccessToken(profile),
     refresh_token: createRefreshToken(profile),
     user: profile,
-    codigo_6: profile.codigo_6,
+    dni: profile.dni,
   };
 }
 
@@ -50,71 +52,65 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
   }
 
   try {
+    const studentRecord = parsed.data.rol === 'alumno'
+      ? await lookupUniversityStudent(parsed.data.dni)
+      : null;
     const passwordHash = await hashPassword(parsed.data.password);
     const authUserId = generateAuthUserId();
 
-    for (let attempt = 0; attempt < 5; attempt += 1) {
-      const codigo6 = generateCodigo6();
-      try {
-        const rows = await sql`
-          INSERT INTO perfiles (
-            auth_user_id,
-            codigo_6,
-            rol,
-            nombre,
-            apellido,
-            curso_carrera,
-            institucion,
-            password_hash
-          )
-          VALUES (
-            ${authUserId}::uuid,
-            ${codigo6},
-            ${parsed.data.rol},
-            ${parsed.data.nombre},
-            ${parsed.data.apellido},
-            ${parsed.data.curso_carrera},
-            ${parsed.data.institucion},
-            ${passwordHash}
-          )
-          RETURNING
-            id,
-            auth_user_id::text AS auth_user_id,
-            codigo_6,
-            rol,
-            nombre,
-            apellido,
-            curso_carrera,
-            institucion,
-            created_at::text AS created_at,
-            avatar_url
-        `;
+    try {
+      const rows = await sql`
+        INSERT INTO perfiles (
+          auth_user_id,
+          dni,
+          rol,
+          nombre,
+          apellido,
+          facultad,
+          carrera,
+          ciclo,
+          password_hash
+        )
+        VALUES (
+          ${authUserId}::uuid,
+          ${parsed.data.dni},
+          ${parsed.data.rol},
+          ${studentRecord?.nombres ?? parsed.data.nombre},
+          ${studentRecord?.apellidos ?? parsed.data.apellido},
+          ${studentRecord?.facultad ?? parsed.data.facultad},
+          ${studentRecord?.carrera ?? parsed.data.carrera},
+          ${studentRecord?.ciclo ?? parsed.data.ciclo},
+          ${passwordHash}
+        )
+        RETURNING
+          id,
+          auth_user_id::text AS auth_user_id,
+          dni,
+          rol,
+          nombre,
+          apellido,
+          facultad,
+          carrera,
+          ciclo,
+          created_at::text AS created_at,
+          avatar_url
+      `;
 
-        const profile = rows[0];
-        response.status(201).json({
-          data: createAuthResponse(profile),
-        });
+      response.status(201).json({
+        data: createAuthResponse(rows[0]),
+      });
+    } catch (error) {
+      if (error?.code === '23505') {
+        response.status(409).json({ error: 'Ya existe una cuenta registrada con ese DNI.' });
         return;
-      } catch (error) {
-        if (error?.code === '23505' && attempt < 4) {
-          continue;
-        }
-        if (error?.code === '23505') {
-          console.error('ERROR REAL DE NEON:', error);
-          console.error('Detalles del error de Neon:', {
-            message: error.message,
-            stack: error.stack,
-            code: error.code,
-            detail: error.detail,
-            hint: error.hint,
-          });
-          response.status(503).json({ error: 'No se pudo generar un código único. Inténtalo de nuevo.' });
-          return;
-        }
-        throw error;
       }
+      throw error;
     }
   } catch (error) {
+    if (error instanceof StudentLookupError) {
+      response.status(error.status).json({ error: error.message });
+      return;
+    }
     next(error);
   }
 });
@@ -122,38 +118,37 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
 router.post('/login', authRateLimit('login'), async (request, response, next) => {
   const parsed = loginSchema.safeParse(request.body);
   if (!parsed.success) {
-    return response.status(400).json({ error: 'El código o la contraseña no tienen un formato válido.' });
+    return response.status(400).json({ error: 'El DNI o la contraseña no tienen un formato válido.' });
   }
 
   try {
-    console.log('1. Buscando usuario...');
     const rows = await sql`
       SELECT
         id,
         auth_user_id::text AS auth_user_id,
-        codigo_6,
+        dni,
         rol,
         nombre,
         apellido,
-        curso_carrera,
-        institucion,
+        facultad,
+        carrera,
+        ciclo,
         created_at::text AS created_at,
         avatar_url,
         password_hash
       FROM perfiles
-      WHERE codigo_6 = ${parsed.data.codigo_6}
+      WHERE dni = ${parsed.data.dni}
       LIMIT 1
     `;
     const profile = rows[0];
     if (!profile) {
-      return response.status(401).json({ error: 'Código o contraseña incorrectos.' });
+      return response.status(401).json({ error: 'DNI o contraseña incorrectos.' });
     }
     if (!profile.password_hash) {
       console.error('Login rejected: password_hash is missing for the requested profile.');
       return response.status(500).json({ error: 'La cuenta no tiene una contraseña configurada.' });
     }
 
-    console.log('2. Verificando contraseña...');
     let passwordMatches;
     try {
       passwordMatches = await verifyPassword(parsed.data.password, profile.password_hash);
@@ -168,10 +163,9 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
     }
 
     if (!passwordMatches) {
-      return response.status(401).json({ error: 'Código o contraseña incorrectos.' });
+      return response.status(401).json({ error: 'DNI o contraseña incorrectos.' });
     }
 
-    console.log('3. Generando tokens...');
     const { password_hash: _passwordHash, ...user } = profile;
     return response.status(200).json({
       data: createAuthResponse(user),
@@ -206,12 +200,13 @@ router.post('/refresh', authRateLimit('refresh'), async (request, response, next
       SELECT
         id,
         auth_user_id::text AS auth_user_id,
-        codigo_6,
+        dni,
         rol,
         nombre,
         apellido,
-        curso_carrera,
-        institucion,
+        facultad,
+        carrera,
+        ciclo,
         created_at::text AS created_at,
         avatar_url
       FROM perfiles

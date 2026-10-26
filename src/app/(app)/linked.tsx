@@ -70,7 +70,7 @@ export default function LinkedScreen() {
       <View style={styles.card}>
         <Text style={styles.eyebrow}>VINCULACIONES</Text>
         <Text style={styles.title}>
-          {isSupervisor ? 'Mis Practicantes' : 'Supervisores vinculados'}
+          {isSupervisor ? 'Mis Alumnos' : 'Supervisores vinculados'}
         </Text>
         <Text style={styles.subtitle}>Personas vinculadas activamente a tu cuenta.</Text>
 
@@ -86,9 +86,9 @@ export default function LinkedScreen() {
               </View>
               <View style={styles.details}>
                 <Text style={styles.name}>{profile.nombre} {profile.apellido}</Text>
-                <Text style={styles.meta}>Código {profile.codigo_6}</Text>
-                <Text style={styles.meta}>{profile.curso_carrera}</Text>
-                <Text style={styles.meta}>{profile.institucion}</Text>
+                <Text style={styles.meta}>DNI {profile.dni}</Text>
+                <Text style={styles.meta}>{profile.carrera} · {profile.ciclo}</Text>
+                <Text style={styles.meta}>{profile.facultad}</Text>
               </View>
               <Pressable
                 accessibilityRole="button"
@@ -110,7 +110,7 @@ export default function LinkedScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Ver asistencias de ${profile.nombre} ${profile.apellido}`}
                   onPress={() => router.push({
-                    pathname: '/(app)/asistencias-practicante/[id]',
+                    pathname: '/(app)/asistencias-alumno/[id]',
                     params: { id: String(profile.id), nombre: `${profile.nombre} ${profile.apellido}` },
                   })}
                   style={({ pressed }) => [styles.attendanceButton, pressed && styles.pressed]}>

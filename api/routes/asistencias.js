@@ -11,14 +11,14 @@ const markSchema = z.object({
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(50),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
-  practicante_id: z.coerce.number().int().positive().optional(),
+  alumno_id: z.coerce.number().int().positive().optional(),
 });
 
 router.use(authenticate);
 
 router.post('/marcar', async (request, response, next) => {
-  if (request.auth.role !== 'practicante') {
-    response.status(403).json({ error: 'Solo un practicante puede marcar su asistencia.' });
+  if (request.auth.role !== 'alumno') {
+    response.status(403).json({ error: 'Solo un alumno puede marcar su asistencia.' });
     return;
   }
   const parsed = markSchema.safeParse(request.body);
@@ -34,7 +34,7 @@ router.post('/marcar', async (request, response, next) => {
       INNER JOIN vinculaciones AS link ON link.supervisor_id = qr.supervisor_id
       WHERE qr.token = ${parsed.data.qr_token}
         AND qr.activo = true
-        AND link.practicante_id = ${request.auth.id}
+        AND link.alumno_id = ${request.auth.id}
         AND link.estado = 'activo'
       LIMIT 1
     `;
@@ -75,7 +75,7 @@ router.post('/marcar', async (request, response, next) => {
           attendance.timestamp > statement_timestamp() - interval '1 hour' AS cooldown_active
         FROM asistencias AS attendance
         CROSS JOIN today_window
-        WHERE attendance.practicante_id = ${request.auth.id}
+        WHERE attendance.alumno_id = ${request.auth.id}
           AND attendance.timestamp >= today_window.starts_at
           AND attendance.timestamp < today_window.starts_at + interval '1 day'
         ORDER BY attendance.timestamp DESC, attendance.id DESC
@@ -98,7 +98,7 @@ router.post('/marcar', async (request, response, next) => {
           SELECT link.supervisor_id
           FROM vinculaciones AS link
           INNER JOIN supervisor_qr AS qr ON qr.supervisor_id = link.supervisor_id
-          WHERE link.practicante_id = ${request.auth.id}
+          WHERE link.alumno_id = ${request.auth.id}
             AND link.estado = 'activo'
           LIMIT 1
         ),
@@ -106,7 +106,7 @@ router.post('/marcar', async (request, response, next) => {
           SELECT attendance.tipo
           FROM asistencias AS attendance
           CROSS JOIN today_window
-          WHERE attendance.practicante_id = ${request.auth.id}
+          WHERE attendance.alumno_id = ${request.auth.id}
             AND attendance.timestamp >= today_window.starts_at
             AND attendance.timestamp < today_window.starts_at + interval '1 day'
           ORDER BY attendance.timestamp DESC, attendance.id DESC
@@ -122,14 +122,14 @@ router.post('/marcar', async (request, response, next) => {
             SELECT 1
             FROM asistencias AS recent_attendance
             CROSS JOIN today_window
-            WHERE recent_attendance.practicante_id = ${request.auth.id}
+            WHERE recent_attendance.alumno_id = ${request.auth.id}
               AND recent_attendance.timestamp >= today_window.starts_at
               AND recent_attendance.timestamp < today_window.starts_at + interval '1 day'
               AND recent_attendance.timestamp >= statement_timestamp() - interval '1 hour'
           )
         )
         INSERT INTO asistencias (
-          practicante_id,
+          alumno_id,
           supervisor_id,
           qr_token,
           tipo,
@@ -144,12 +144,12 @@ router.post('/marcar', async (request, response, next) => {
           statement_timestamp(),
           true
         FROM next_check
-        RETURNING id, practicante_id, supervisor_id, qr_token, tipo, timestamp::text AS timestamp
+        RETURNING id, alumno_id, supervisor_id, qr_token, tipo, timestamp::text AS timestamp
       `,
     ]);
 
     if (!profiles[0]) {
-      response.status(404).json({ error: 'No se encontró el perfil del practicante.' });
+      response.status(404).json({ error: 'No se encontró el perfil del alumno.' });
       return;
     }
 
@@ -179,68 +179,68 @@ router.get('/', async (request, response, next) => {
     response.status(400).json({ error: 'Los parámetros de paginación no son válidos.' });
     return;
   }
-  const { limit, offset, practicante_id: practitionerId } = parsed.data;
+  const { limit, offset, alumno_id: alumnoId } = parsed.data;
 
   try {
-    if (request.auth.role === 'supervisor' && practitionerId !== undefined) {
+    if (request.auth.role === 'supervisor' && alumnoId !== undefined) {
       const activeLink = await sql`
         SELECT link.id
         FROM vinculaciones AS link
-        INNER JOIN perfiles AS practitioner ON practitioner.id = link.practicante_id
+        INNER JOIN perfiles AS alumno ON alumno.id = link.alumno_id
         WHERE link.supervisor_id = ${request.auth.id}
-          AND link.practicante_id = ${practitionerId}
+          AND link.alumno_id = ${alumnoId}
           AND link.estado = 'activo'
-          AND practitioner.rol = 'practicante'
+          AND alumno.rol = 'alumno'
         LIMIT 1
       `;
       if (!activeLink[0]) {
-        response.status(403).json({ error: 'No tienes una vinculación activa con ese practicante.' });
+        response.status(403).json({ error: 'No tienes una vinculación activa con ese alumno.' });
         return;
       }
-    } else if (request.auth.role !== 'supervisor' && practitionerId !== undefined) {
-      response.status(403).json({ error: 'Solo un supervisor puede consultar asistencias por practicante.' });
+    } else if (request.auth.role !== 'supervisor' && alumnoId !== undefined) {
+      response.status(403).json({ error: 'Solo un supervisor puede consultar asistencias por alumno.' });
       return;
     }
 
     const rows = request.auth.role === 'supervisor'
-      ? practitionerId !== undefined
+      ? alumnoId !== undefined
         ? await sql`
         SELECT
           attendance.id,
-          attendance.practicante_id,
+          attendance.alumno_id,
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
-          profile.nombre AS practicante_nombre,
-          profile.apellido AS practicante_apellido,
-          profile.codigo_6 AS practicante_codigo_6
+          profile.nombre AS alumno_nombre,
+          profile.apellido AS alumno_apellido,
+          profile.dni AS alumno_dni
         FROM asistencias AS attendance
         INNER JOIN vinculaciones AS link
           ON link.supervisor_id = attendance.supervisor_id
-          AND link.practicante_id = attendance.practicante_id
+          AND link.alumno_id = attendance.alumno_id
           AND link.estado = 'activo'
-        INNER JOIN perfiles AS profile ON profile.id = attendance.practicante_id
+        INNER JOIN perfiles AS profile ON profile.id = attendance.alumno_id
         WHERE attendance.supervisor_id = ${request.auth.id}
-          AND attendance.practicante_id = ${practitionerId}
+          AND attendance.alumno_id = ${alumnoId}
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `
         : await sql`
         SELECT
           attendance.id,
-          attendance.practicante_id,
+          attendance.alumno_id,
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
-          profile.nombre AS practicante_nombre,
-          profile.apellido AS practicante_apellido,
-          profile.codigo_6 AS practicante_codigo_6
+          profile.nombre AS alumno_nombre,
+          profile.apellido AS alumno_apellido,
+          profile.dni AS alumno_dni
         FROM asistencias AS attendance
         INNER JOIN vinculaciones AS link
           ON link.supervisor_id = attendance.supervisor_id
-          AND link.practicante_id = attendance.practicante_id
+          AND link.alumno_id = attendance.alumno_id
           AND link.estado = 'activo'
-        INNER JOIN perfiles AS profile ON profile.id = attendance.practicante_id
+        INNER JOIN perfiles AS profile ON profile.id = attendance.alumno_id
         WHERE attendance.supervisor_id = ${request.auth.id}
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
@@ -248,7 +248,7 @@ router.get('/', async (request, response, next) => {
       : await sql`
         SELECT
           attendance.id,
-          attendance.practicante_id,
+          attendance.alumno_id,
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
@@ -256,7 +256,7 @@ router.get('/', async (request, response, next) => {
           profile.apellido AS supervisor_apellido
         FROM asistencias AS attendance
         INNER JOIN perfiles AS profile ON profile.id = attendance.supervisor_id
-        WHERE attendance.practicante_id = ${request.auth.id}
+        WHERE attendance.alumno_id = ${request.auth.id}
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `;

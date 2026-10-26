@@ -29,7 +29,7 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
     { name: 'editar-perfil', label: 'Editar Perfil', icon: '✎' },
     ...(isSupervisor
       ? [
-          { name: 'linked' as const, label: 'Mis Practicantes', icon: '⇄' },
+          { name: 'linked' as const, label: 'Mis Alumnos', icon: '⇄' },
           { name: 'qr' as const, label: 'Mi Código QR', icon: '▦' },
           { name: 'asistencias' as const, label: 'Asistencias', icon: '◷' },
         ]
@@ -45,7 +45,7 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
   async function handleCopyId() {
     if (!user) return;
     try {
-      await Clipboard.setStringAsync(user.codigo_6);
+      await Clipboard.setStringAsync(user.dni);
       setCopyStatus('copied');
     } catch (copyError) {
       console.error('No se pudo copiar el código de usuario.', copyError);
@@ -83,15 +83,15 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
             {user ? `${user.nombre} ${user.apellido}` : 'Mi perfil'}
           </Text>
           <Text style={styles.userRole}>
-            {isSupervisor ? 'Supervisor' : 'Practicante'}
+            {isSupervisor ? 'Supervisor' : 'Alumno'}
           </Text>
           {user && (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={`Copiar ID ${user.codigo_6}`}
+              accessibilityLabel={`Copiar DNI ${user.dni}`}
               onPress={() => void handleCopyId()}
               style={({ pressed }) => [styles.copyId, pressed && styles.copyIdPressed]}>
-              <Text style={styles.userId}>ID: {user.codigo_6}</Text>
+              <Text style={styles.userId}>DNI: {user.dni}</Text>
               <Text style={styles.copyHint}>
                 {copyStatus === 'copied'
                   ? 'ID copiado'
@@ -116,6 +116,13 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
               labelStyle={styles.menuLabel}
             />
           ))}
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/politicas')}
+            style={({ pressed }) => [styles.policyItem, pressed && styles.policyItemPressed]}>
+            <Text style={styles.policyIcon}>▤</Text>
+            <Text style={styles.policyLabel}>Políticas de Privacidad</Text>
+          </Pressable>
         </View>
       </DrawerContentScrollView>
 
@@ -162,6 +169,10 @@ const styles = StyleSheet.create({
   menuItem: { borderRadius: 12, marginVertical: 3 },
   menuLabel: { fontFamily: fonts.medium, fontSize: 14, marginLeft: -14 },
   menuIcon: { width: 22, fontSize: 18, textAlign: 'center' },
+  policyItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 18, marginVertical: 3, paddingHorizontal: 16, borderRadius: 12 },
+  policyItemPressed: { backgroundColor: '#f1f0ec' },
+  policyIcon: { width: 22, color: colors.primary, fontSize: 18, textAlign: 'center' },
+  policyLabel: { color: '#334155', fontFamily: fonts.medium, fontSize: 14 },
   footer: { borderTopWidth: 1, borderTopColor: '#e2e8f0', padding: 16 },
   logout: {
     minHeight: 48,

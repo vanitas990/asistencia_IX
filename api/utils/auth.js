@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
-import { randomInt, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
 const TOKEN_ISSUER = 'asistencia-ix-api';
 const ACCESS_TOKEN_AUDIENCE = 'asistencia-ix-mobile';
@@ -24,7 +24,7 @@ export function verifyPassword(password, passwordHash) {
 
 export function createAccessToken(profile) {
   return jwt.sign(
-    { rol: profile.rol, codigo_6: profile.codigo_6, token_type: 'access' },
+    { rol: profile.rol, dni: profile.dni, token_type: 'access' },
     getJwtSecret(),
     {
       algorithm: 'HS256',
@@ -86,10 +86,6 @@ export function verifyAccessToken(token) {
     }
     throw error;
   }
-}
-
-export function generateCodigo6() {
-  return randomInt(100000, 1000000).toString();
 }
 
 export function generateAuthUserId() {

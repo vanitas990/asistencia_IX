@@ -4,6 +4,7 @@ import express from 'express';
 import { sql } from './db.js';
 import asistenciasRouter from './routes/asistencias.js';
 import authRouter from './routes/auth.js';
+import studentsRouter from './routes/estudiantes.js';
 import profileRouter from './routes/perfiles.js';
 import qrRouter from './routes/qr.js';
 import vinculacionesRouter from './routes/vinculaciones.js';
@@ -44,6 +45,7 @@ app.get('/health', checkDatabase);
 app.get('/api/health', checkDatabase);
 
 app.use('/api/auth', authRouter);
+app.use('/api/estudiantes', studentsRouter);
 app.use('/api/asistencias', asistenciasRouter);
 app.use('/api/perfiles', profileRouter);
 app.use('/api/vinculaciones', vinculacionesRouter);

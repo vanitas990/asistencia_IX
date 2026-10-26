@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
-import { generateQr, getPractitionerQr, regenerateQr } from '@/services/link-api';
+import { generateQr, getAlumnoQr, regenerateQr } from '@/services/link-api';
 import { cardElevation, colors, fonts } from '@/theme';
 
 export default function QrScreen() {
@@ -22,8 +22,8 @@ export default function QrScreen() {
   const loadQr = useCallback(async (isActive: () => boolean = () => isMountedRef.current) => {
     if (isActive()) setError(null);
     try {
-      const qr = userRole === 'practicante'
-        ? await getPractitionerQr(apiFetch)
+      const qr = userRole === 'alumno'
+        ? await getAlumnoQr(apiFetch)
         : await generateQr(apiFetch);
       if (isActive()) setToken(qr.token);
     } catch (loadError) {
@@ -59,7 +59,7 @@ export default function QrScreen() {
         margin: 2,
         width: 280,
       });
-      const qrOwner = userRole === 'practicante' ? 'practicante' : 'supervisor';
+      const qrOwner = userRole === 'alumno' ? 'alumno' : 'supervisor';
       const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#0f172a}svg{width:260px;height:260px}.token{font-size:12px;word-break:break-all;color:#475569}</style></head><body><h1>Asistencia IX</h1><p>Código QR estático del ${qrOwner}</p>${svg}<p class="token">${token}</p></body></html>`;
 
       if (Platform.OS === 'web') {
@@ -117,9 +117,9 @@ export default function QrScreen() {
         <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
         <Text style={styles.title}>Mi Código QR</Text>
         <Text style={styles.subtitle}>
-          {userRole === 'practicante'
+          {userRole === 'alumno'
             ? 'Muestra este QR a tu supervisor para vincularte.'
-            : 'Comparte este QR para que los practicantes marquen su asistencia.'}
+            : 'Comparte este QR para que los alumnos marquen su asistencia.'}
         </Text>
 
         {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}

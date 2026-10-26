@@ -6,7 +6,7 @@ import { authenticate, requireRole } from '../middleware/authenticate.js';
 
 const router = Router();
 const requestSchema = z.object({
-  codigo_6_practicante: z.string().regex(/^\d{6}$/),
+  dni_alumno: z.string().regex(/^\d{8}$/),
 }).strict();
 const acceptSchema = z.object({
   vinculacion_id: z.number().int().positive(),
@@ -27,29 +27,29 @@ router.post('/por-qr', requireRole('supervisor'), async (request, response, next
   try {
     const profiles = await sql`
       SELECT profile.id
-      FROM qr_practicante AS qr
-      INNER JOIN perfiles AS profile ON profile.id = qr.practicante_id
+      FROM qr_alumno AS qr
+      INNER JOIN perfiles AS profile ON profile.id = qr.alumno_id
       WHERE qr.token = ${parsed.data.token}
         AND qr.activo = true
-        AND profile.rol = 'practicante'
+        AND profile.rol = 'alumno'
       LIMIT 1
     `;
-    const practitioner = profiles[0];
-    if (!practitioner) {
+    const alumno = profiles[0];
+    if (!alumno) {
       response.status(404).json({ error: 'El código QR no existe o está inactivo.' });
       return;
     }
-    if (practitioner.id === request.auth.id) {
+    if (alumno.id === request.auth.id) {
       response.status(400).json({ error: 'No puedes vincular tu cuenta contigo mismo.' });
       return;
     }
 
     const rows = await sql`
-      INSERT INTO vinculaciones (supervisor_id, practicante_id, estado, metodo)
-      VALUES (${request.auth.id}, ${practitioner.id}, 'activo', 'qr')
-      ON CONFLICT (supervisor_id, practicante_id)
+      INSERT INTO vinculaciones (supervisor_id, alumno_id, estado, metodo)
+      VALUES (${request.auth.id}, ${alumno.id}, 'activo', 'qr')
+      ON CONFLICT (supervisor_id, alumno_id)
       DO UPDATE SET estado = 'activo', metodo = 'qr'
-      RETURNING id, supervisor_id, practicante_id, estado, metodo, created_at::text AS created_at
+      RETURNING id, supervisor_id, alumno_id, estado, metodo, created_at::text AS created_at
     `;
     response.json({ data: rows[0] });
   } catch (error) {
@@ -60,7 +60,7 @@ router.post('/por-qr', requireRole('supervisor'), async (request, response, next
 router.post('/solicitar', requireRole('supervisor'), async (request, response, next) => {
   const parsed = requestSchema.safeParse(request.body);
   if (!parsed.success) {
-    response.status(400).json({ error: 'El código del practicante debe tener 6 dígitos.' });
+    response.status(400).json({ error: 'El DNI del alumno debe tener 8 dígitos.' });
     return;
   }
 
@@ -68,16 +68,16 @@ router.post('/solicitar', requireRole('supervisor'), async (request, response, n
     const profiles = await sql`
       SELECT id
       FROM perfiles
-      WHERE codigo_6 = ${parsed.data.codigo_6_practicante}
-        AND rol = 'practicante'
+      WHERE dni = ${parsed.data.dni_alumno}
+        AND rol = 'alumno'
       LIMIT 1
     `;
-    const practitioner = profiles[0];
-    if (!practitioner) {
-      response.status(404).json({ error: 'No se encontró un practicante con ese código.' });
+    const alumno = profiles[0];
+    if (!alumno) {
+      response.status(404).json({ error: 'No se encontró un alumno con ese DNI.' });
       return;
     }
-    if (practitioner.id === request.auth.id) {
+    if (alumno.id === request.auth.id) {
       response.status(400).json({ error: 'No puedes vincular tu cuenta contigo mismo.' });
       return;
     }
@@ -86,45 +86,45 @@ router.post('/solicitar', requireRole('supervisor'), async (request, response, n
       SELECT id, estado
       FROM vinculaciones
       WHERE supervisor_id = ${request.auth.id}
-        AND practicante_id = ${practitioner.id}
+        AND alumno_id = ${alumno.id}
       LIMIT 1
     `;
     if (existing[0]) {
-      response.status(409).json({ error: 'Ya existe una solicitud o vinculación con ese practicante.' });
+      response.status(409).json({ error: 'Ya existe una solicitud o vinculación con ese alumno.' });
       return;
     }
 
     const rows = await sql`
-      INSERT INTO vinculaciones (supervisor_id, practicante_id, estado, metodo)
-      VALUES (${request.auth.id}, ${practitioner.id}, 'pendiente', 'id')
-      RETURNING id, supervisor_id, practicante_id, estado, metodo, created_at::text AS created_at
+      INSERT INTO vinculaciones (supervisor_id, alumno_id, estado, metodo)
+      VALUES (${request.auth.id}, ${alumno.id}, 'pendiente', 'id')
+      RETURNING id, supervisor_id, alumno_id, estado, metodo, created_at::text AS created_at
     `;
     response.status(201).json({ data: rows[0] });
   } catch (error) {
     if (error?.code === '23505') {
-      response.status(409).json({ error: 'Ya existe una solicitud o vinculación con ese practicante.' });
+      response.status(409).json({ error: 'Ya existe una solicitud o vinculación con ese alumno.' });
       return;
     }
     next(error);
   }
 });
 
-router.get('/pendientes', requireRole('practicante'), async (request, response, next) => {
+router.get('/pendientes', requireRole('alumno'), async (request, response, next) => {
   try {
     const rows = await sql`
       SELECT
         v.id,
         v.supervisor_id,
-        v.practicante_id,
+        v.alumno_id,
         v.estado,
         v.metodo,
         v.created_at::text AS created_at,
         p.nombre AS supervisor_nombre,
         p.apellido AS supervisor_apellido,
-        p.institucion AS supervisor_institucion
+        p.facultad AS supervisor_facultad
       FROM vinculaciones AS v
       INNER JOIN perfiles AS p ON p.id = v.supervisor_id
-      WHERE v.practicante_id = ${request.auth.id}
+      WHERE v.alumno_id = ${request.auth.id}
         AND v.estado = 'pendiente'
       ORDER BY v.created_at ASC
     `;
@@ -134,7 +134,7 @@ router.get('/pendientes', requireRole('practicante'), async (request, response, 
   }
 });
 
-router.post('/aceptar', requireRole('practicante'), async (request, response, next) => {
+router.post('/aceptar', requireRole('alumno'), async (request, response, next) => {
   const parsed = acceptSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ error: 'El identificador de la vinculación no es válido.' });
@@ -146,9 +146,9 @@ router.post('/aceptar', requireRole('practicante'), async (request, response, ne
       UPDATE vinculaciones
       SET estado = 'activo'
       WHERE id = ${parsed.data.vinculacion_id}
-        AND practicante_id = ${request.auth.id}
+        AND alumno_id = ${request.auth.id}
         AND estado = 'pendiente'
-      RETURNING id, supervisor_id, practicante_id, estado, metodo, created_at::text AS created_at
+      RETURNING id, supervisor_id, alumno_id, estado, metodo, created_at::text AS created_at
     `;
     if (!rows[0]) {
       response.status(404).json({ error: 'La solicitud no existe o ya fue procesada.' });
@@ -171,7 +171,7 @@ router.delete('/:id', async (request, response, next) => {
     const rows = await sql`
       DELETE FROM vinculaciones
       WHERE id = ${vinculationId.data}
-        AND (supervisor_id = ${request.auth.id} OR practicante_id = ${request.auth.id})
+        AND (supervisor_id = ${request.auth.id} OR alumno_id = ${request.auth.id})
       RETURNING id
     `;
     if (!rows[0]) {
@@ -193,11 +193,12 @@ router.get('/activas', async (request, response, next) => {
           p.id,
           p.nombre,
           p.apellido,
-          p.codigo_6,
-          p.curso_carrera,
-          p.institucion
+          p.dni,
+          p.facultad,
+          p.carrera,
+          p.ciclo
         FROM vinculaciones AS v
-        INNER JOIN perfiles AS p ON p.id = v.practicante_id
+        INNER JOIN perfiles AS p ON p.id = v.alumno_id
         WHERE v.supervisor_id = ${request.auth.id}
           AND v.estado = 'activo'
         ORDER BY p.apellido, p.nombre
@@ -208,12 +209,13 @@ router.get('/activas', async (request, response, next) => {
           p.id,
           p.nombre,
           p.apellido,
-          p.codigo_6,
-          p.curso_carrera,
-          p.institucion
+          p.dni,
+          p.facultad,
+          p.carrera,
+          p.ciclo
         FROM vinculaciones AS v
         INNER JOIN perfiles AS p ON p.id = v.supervisor_id
-        WHERE v.practicante_id = ${request.auth.id}
+        WHERE v.alumno_id = ${request.auth.id}
           AND v.estado = 'activo'
         ORDER BY p.apellido, p.nombre
       `;

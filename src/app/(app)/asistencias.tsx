@@ -89,7 +89,7 @@ export default function AttendancesScreen() {
       ListHeaderComponent={(
         <View style={styles.headerCard}>
           <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
-          <Text style={styles.title}>{isSupervisor ? 'Asistencias de practicantes' : 'Mis asistencias'}</Text>
+          <Text style={styles.title}>{isSupervisor ? 'Asistencias de alumnos' : 'Mis asistencias'}</Text>
           <Text style={styles.subtitle}>
             {isSupervisor ? 'Actualización automática cada 15 segundos.' : 'Tu historial de entradas y salidas.'}
           </Text>
@@ -99,12 +99,12 @@ export default function AttendancesScreen() {
       )}
       renderItem={({ item }) => {
         const person = isSupervisor
-          ? `${item.practicante_nombre ?? ''} ${item.practicante_apellido ?? ''}`.trim()
+          ? `${item.alumno_nombre ?? ''} ${item.alumno_apellido ?? ''}`.trim()
           : `${item.supervisor_nombre ?? ''} ${item.supervisor_apellido ?? ''}`.trim();
         return (
           <View style={styles.recordCard}>
             <View style={styles.recordDetails}>
-              <Text style={styles.personName}>{isSupervisor ? person || 'Practicante' : person || 'Supervisor'}</Text>
+              <Text style={styles.personName}>{isSupervisor ? person || 'Alumno' : person || 'Supervisor'}</Text>
               <Text style={styles.date}>{formatLocalTimestamp(item.timestamp)}</Text>
             </View>
             <View style={[styles.typeBadge, item.tipo === 'entrada' ? styles.entryBadge : styles.exitBadge]}>

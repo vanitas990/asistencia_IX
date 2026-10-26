@@ -40,8 +40,8 @@ export default function AppLayout() {
       <Drawer.Screen name="asistencias" options={{ title: 'Asistencias' }} />
       <Drawer.Screen name="scan" options={{ title: 'Escanear código QR', drawerItemStyle: { display: 'none' } }} />
       <Drawer.Screen
-        name="asistencias-practicante/[id]"
-        options={{ title: 'Asistencias del practicante', drawerItemStyle: { display: 'none' } }}
+        name="asistencias-alumno/[id]"
+        options={{ title: 'Asistencias del alumno', drawerItemStyle: { display: 'none' } }}
       />
     </Drawer>
   );

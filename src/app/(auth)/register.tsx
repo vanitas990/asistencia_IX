@@ -131,12 +131,22 @@ export default function RegisterScreen() {
     clearAuthError();
     setIsSubmitting(true);
     try {
+      let payload: RegisterFormData;
       if (result.data.rol === 'supervisor') {
         const { facultad: _facultad, ciclo: _ciclo, ...supervisorData } = result.data;
-        await register(supervisorData);
+        payload = supervisorData;
+        console.log('Payload Supervisor (datos sensibles redactados):', JSON.stringify({
+          ...supervisorData,
+          dni: `******${supervisorData.dni.slice(-2)}`,
+          nombre: '[REDACTED]',
+          apellido: '[REDACTED]',
+          carrera: supervisorData.carrera ? '[PRESENTE]' : '[VACÍO]',
+          password: '[REDACTED]',
+        }));
       } else {
-        await register(result.data);
+        payload = result.data;
       }
+      await register(payload);
       router.replace('/(app)/home');
     } catch {
       // AuthContext exposes the mock storage error for display.

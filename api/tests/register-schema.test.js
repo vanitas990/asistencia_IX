@@ -16,6 +16,25 @@ test('accepts supervisor registration without faculty or cycle', () => {
   assert.equal(registerSchema.safeParse(validSupervisor).success, true);
 });
 
+test('accepts the exact test-api.http supervisor payload using plural name fields', () => {
+  const result = registerSchema.safeParse({
+    dni: '87654321',
+    password: 'MiPasswordSeguro123',
+    rol: 'supervisor',
+    nombres: 'Ingeniero',
+    apellidos: 'Prueba',
+    carrera: 'Especialidad de Prueba',
+  });
+
+  assert.equal(result.success, true);
+  if (result.success) {
+    assert.equal(result.data.nombre, 'Ingeniero');
+    assert.equal(result.data.apellido, 'Prueba');
+    assert.equal('nombres' in result.data, false);
+    assert.equal('apellidos' in result.data, false);
+  }
+});
+
 test('accepts nullable optional supervisor faculty and cycle', () => {
   assert.equal(registerSchema.safeParse({
     ...validSupervisor,

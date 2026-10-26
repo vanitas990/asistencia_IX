@@ -34,17 +34,55 @@ function createAuthResponse(profile) {
   };
 }
 
+function redactRegistrationValue(value, registrationData) {
+  if (typeof value !== 'string') return value;
+  const sensitiveValues = [
+    registrationData?.dni,
+    registrationData?.nombre,
+    registrationData?.nombres,
+    registrationData?.apellido,
+    registrationData?.apellidos,
+    registrationData?.facultad,
+    registrationData?.carrera,
+    registrationData?.ciclo,
+    registrationData?.password,
+  ].filter((item) => typeof item === 'string' && item.length > 0);
+
+  return sensitiveValues.reduce(
+    (message, sensitiveValue) => message.replaceAll(sensitiveValue, '[REDACTED]'),
+    value.replace(/\b\d{8}\b/g, '[REDACTED_DNI]'),
+  );
+}
+
 router.post('/register', authRateLimit('register'), async (request, response, next) => {
+  const body = request.body && typeof request.body === 'object' && !Array.isArray(request.body)
+    ? request.body
+    : {};
+  console.log('Body recibido (datos sensibles redactados):', {
+    role: body.rol,
+    fields: Object.keys(body),
+    dni: typeof body.dni === 'string' ? `******${body.dni.slice(-2)}` : undefined,
+    password: body.password === undefined ? 'missing' : '[REDACTED]',
+  });
+
   const parsed = registerSchema.safeParse(request.body);
   if (!parsed.success) {
+    console.log('Error de Zod detallado:', parsed.error.issues.map((issue) => ({
+      path: issue.path.join('.'),
+      code: issue.code,
+      message: issue.message,
+    })));
     response.status(400).json({ error: 'Los datos enviados no son válidos.' });
     return;
   }
 
+  const registrationData = parsed.data;
+  const sensitiveRegistrationData = { ...registrationData };
   try {
     const studentRecord = parsed.data.rol === 'alumno'
       ? await lookupUniversityStudent(parsed.data.dni)
       : null;
+    Object.assign(sensitiveRegistrationData, studentRecord);
     const passwordHash = await hashPassword(parsed.data.password);
     const authUserId = generateAuthUserId();
 
@@ -54,8 +92,8 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           auth_user_id,
           dni,
           rol,
-          nombre,
-          apellido,
+          nombres,
+          apellidos,
           facultad,
           carrera,
           ciclo,
@@ -77,8 +115,8 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           auth_user_id::text AS auth_user_id,
           dni,
           rol,
-          nombre,
-          apellido,
+          nombres AS nombre,
+          apellidos AS apellido,
           facultad,
           carrera,
           ciclo,
@@ -90,10 +128,17 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
         data: createAuthResponse(rows[0]),
       });
     } catch (error) {
-      if (error?.code === '23505') {
+      if (error?.code === '23505' && /dni/i.test(error?.constraint ?? '')) {
         response.status(409).json({ error: 'Ya existe una cuenta registrada con ese DNI.' });
         return;
       }
+      console.error('Error exacto de Neon:', {
+        message: redactRegistrationValue(error?.message, sensitiveRegistrationData),
+        detail: redactRegistrationValue(error?.detail, sensitiveRegistrationData),
+        hint: redactRegistrationValue(error?.hint, sensitiveRegistrationData),
+        code: error?.code,
+        constraint: error?.constraint,
+      });
       throw error;
     }
   } catch (error) {
@@ -105,10 +150,10 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
       name: error?.name ?? 'UnknownError',
       message: error?.message,
       code: error?.code,
-      detail: error?.detail,
-      hint: error?.hint,
+      detail: redactRegistrationValue(error?.detail, sensitiveRegistrationData),
+      hint: redactRegistrationValue(error?.hint, sensitiveRegistrationData),
       constraint: error?.constraint,
-      stack: error?.stack,
+      stack: redactRegistrationValue(error?.stack, sensitiveRegistrationData),
     });
     next(error);
   }
@@ -127,8 +172,8 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombre,
-        apellido,
+        nombres AS nombre,
+        apellidos AS apellido,
         facultad,
         carrera,
         ciclo,
@@ -201,8 +246,8 @@ router.post('/refresh', authRateLimit('refresh'), async (request, response, next
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombre,
-        apellido,
+        nombres AS nombre,
+        apellidos AS apellido,
         facultad,
         carrera,
         ciclo,

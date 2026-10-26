@@ -1,8 +1,27 @@
-### Probar Login (con DNI)
-POST http://localhost:3000/api/auth/login
+### Registrar Supervisor
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "dni": "87654321",
+  "password": "MiPasswordSeguro123",
+  "rol": "supervisor",
+  "nombres": "Ingeniero",
+  "apellidos": "Prueba",
+  "carrera": "Especialidad de Prueba"
+}
+
+### Registrar Alumno
+POST http://localhost:3000/api/auth/register
 Content-Type: application/json
 
 {
   "dni": "12345678",
-  "password": "MiPasswordSeguro123"
+  "password": "MiPasswordSeguro123",
+  "rol": "alumno",
+  "nombres": "Nestor",
+  "apellidos": "Armas",
+  "facultad": "Ingeniería de Sistemas",
+  "carrera": "Ingeniería de Software",
+  "ciclo": "V"
 }

@@ -27,8 +27,8 @@ router.get('/yo', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombre,
-        apellido,
+        nombres AS nombre,
+        apellidos AS apellido,
         facultad,
         carrera,
         ciclo,
@@ -71,8 +71,8 @@ router.patch('/avatar', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombre,
-        apellido,
+        nombres AS nombre,
+        apellidos AS apellido,
         facultad,
         carrera,
         ciclo,
@@ -100,8 +100,8 @@ router.put('/editar', async (request, response, next) => {
     const rows = await sql`
       UPDATE perfiles
       SET
-        nombre = ${parsed.data.nombre},
-        apellido = ${parsed.data.apellido},
+        nombres = ${parsed.data.nombre},
+        apellidos = ${parsed.data.apellido},
         facultad = ${parsed.data.facultad ?? null},
         carrera = ${parsed.data.carrera},
         ciclo = ${parsed.data.ciclo ?? null}
@@ -111,8 +111,8 @@ router.put('/editar', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombre,
-        apellido,
+        nombres AS nombre,
+        apellidos AS apellido,
         facultad,
         carrera,
         ciclo,

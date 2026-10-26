@@ -1,98 +1,126 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
+import { useEffect } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useAuth } from '@/context/AuthContext';
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
+export default function WelcomeScreen() {
+  const { user, isLoading, authError, clearAuthError } = useAuth();
+  const userId = user?.id;
+
+  useEffect(() => {
+    if (!isLoading && userId) {
+      router.replace('/(app)/home');
+    }
+  }, [isLoading, userId]);
+
+  if (isLoading || user) {
     return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#0f172a" />
+      </View>
     );
   }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <View style={styles.container}>
+      <View style={styles.content}>
+        {/* Logo / Marca */}
+        <View style={styles.mark}>
+          <Text style={styles.markText}>A</Text>
+        </View>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+        {/* Textos de bienvenida */}
+        <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
+        <Text style={styles.title}>Tu asistencia,{"\n"}más simple.</Text>
+        <Text style={styles.subtitle}>
+          Registra y consulta tu asistencia de forma rápida y segura.
+        </Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+        {authError && (
+          <Pressable onPress={clearAuthError}>
+            <Text style={styles.error}>{authError}</Text>
+          </Pressable>
+        )}
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        {/* Botones de acción sin conflictos de Link */}
+        <View style={styles.buttonContainer}>
+          <Pressable 
+            style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}
+            onPress={() => router.push('/(auth)/login')}
+          >
+            <Text style={styles.primaryButtonText}>Iniciar sesión</Text>
+          </Pressable>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+          <Pressable 
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            onPress={() => router.push('/(auth)/register')}
+          >
+            <Text style={styles.secondaryButtonText}>Crear cuenta</Text>
+          </Pressable>
+        </View>
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+  container: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    padding: 24, 
+    backgroundColor: '#f8fafc' 
   },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
+  content: { 
+    width: '100%', 
+    maxWidth: 440, 
+    alignSelf: 'center', 
+    alignItems: 'center', 
+  },
+  mark: {
+    width: 76,
+    height: 76,
     alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    justifyContent: 'center',
+    borderRadius: 24,
+    backgroundColor: '#dbeafe',
+    marginBottom: 16,
   },
-  heroSection: {
+  markText: { color: '#1d4ed8', fontSize: 36, fontWeight: '800' },
+  eyebrow: { color: '#2563eb', fontSize: 12, fontWeight: '700', letterSpacing: 1.7, marginBottom: 8 },
+  title: { color: '#0f172a', fontSize: 32, fontWeight: '800', textAlign: 'center', lineHeight: 38, marginBottom: 12 },
+  subtitle: { color: '#64748b', fontSize: 15, lineHeight: 22, textAlign: 'center', marginBottom: 32 },
+  
+  buttonContainer: {
+    width: '100%',
+    gap: 12,
+  },
+
+  /* Botón Principal: Azul / Slate Oscuro que sí o sí tiene que verse sólido */
+  primaryButton: {
+    height: 54,
+    width: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    borderRadius: 16,
+    backgroundColor: '#2563eb', // Fondo oscuro potente
   },
-  title: {
-    textAlign: 'center',
+  primaryButtonText: { color: '#ffffff', fontSize: 16, fontWeight: '700' },
+
+  /* Botón Secundario: Fondo con borde bien marcado */
+  secondaryButton: {
+    height: 54,
+    width: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#cbd5e1',
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
   },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  secondaryButtonText: { color: '#334155', fontSize: 16, fontWeight: '700' },
+
+  pressed: { opacity: 0.8 },
+  error: { color: '#b91c1c', textAlign: 'center', fontSize: 14, marginBottom: 16 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' },
 });

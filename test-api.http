@@ -1,0 +1,8 @@
+### Probar Login (con código numérico)
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "codigo_6": "358848",
+  "password": "MiPasswordSeguro123"
+}

@@ -39,3 +39,46 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+# AGENTS.md - Contexto y Reglas del Proyecto "Asistencia_IX"
+
+## 1. Visión General
+App móvil de asistencia mediante códigos QR para instituciones educativas. Los supervisores generan un QR estático (impreso) y los practicantes lo escanean para registrar entrada/salida en tiempo real.
+
+## 2. Stack Tecnológico
+- **Frontend:** React Native + Expo (Expo Router).
+- **Librerías Clave:** `expo-camera`, `expo-print`, `expo-sharing`, `expo-secure-store`, `zod`.
+- **Backend/API:** Edge Functions (Vercel/Cloudflare) o Node.js ligero.
+- **Base de Datos:** Neon (PostgreSQL Serverless) usando el pooler (PgBouncer).
+- **Autenticación:** JWT propio + Refresh Tokens (sin correo, usando un código de 6 dígitos).
+
+## 3. Arquitectura y Regla de Oro
+- **REGLA DE ORO:** La app móvil NUNCA se conecta directamente a Neon. Todo el tráfico pasa por la capa de API.
+- La API es la encargada de validar identidad, aplicar rate limiting, hashear contraseñas (Argon2/Bcrypt) y ejecutar consultas parametrizadas.
+
+## 4. Esquema de Base de Datos (Neon PostgreSQL)
+El agente debe asumir la existencia de estas 5 tablas:
+1. **`perfiles`**: id (UUID), auth_user_id (UUID), codigo_6 (CHAR 6), rol ('supervisor' | 'practicante'), nombre, apellido, curso_carrera, institucion, created_at.
+2. **`vinculaciones`**: id, supervisor_id, practicante_id, estado ('pendiente' | 'activo'), metodo ('id' | 'qr'), created_at.
+3. **`qr_supervisor`**: id, supervisor_id, token (UNIQUE), activo (BOOLEAN), created_at.
+4. **`asistencias`**: id, practicante_id, supervisor_id, qr_token, tipo ('entrada' | 'salida'), timestamp, sincronizado (BOOLEAN).
+5. **`rate_limits`**: clave (PK), contador, ventana_inicio.
+
+*Nota: Se debe implementar RLS (Row Level Security) en todas las tablas sensibles.*
+
+## 5. Reglas de Seguridad Estrictas
+- **Anti-Inyección SQL:** PROHIBIDO concatenar strings en SQL. Usar siempre consultas parametrizadas (ej. `sql\`SELECT * FROM perfiles WHERE codigo_6 = ${codigo}\``).
+- **Validación:** Usar `zod` para validar todos los payloads antes de tocar la base de datos. El `codigo_6` debe cumplir con el regex `/^[A-Z0-9]{6}$/`.
+- **Sesión en App:** El Refresh Token se guarda en `expo-secure-store`. El JWT viaja en los headers.
+
+## 6. Estándares de Código
+- **Lenguaje:** TypeScript estricto.
+- **Nomenclatura:** 
+  - Código (variables, funciones, componentes) en **inglés** y **camelCase**.
+  - Rutas de la API y nombres de columnas de DB en **español**.
+- **UI:** Componentes funcionales, manejo de estados de carga y error.
+
+## 7. Tareas Actuales (Fase 1)
+- Generar el archivo `db/schema.sql` local para luego ejecutarlo en Neon.
+- Crear validaciones con Zod (`src/schemas/`).
+- Crear el `AuthContext.tsx` para el manejo de sesión en React Native.

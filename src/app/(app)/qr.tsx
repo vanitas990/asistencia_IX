@@ -25,6 +25,9 @@ export default function QrScreen() {
       const qr = userRole === 'alumno'
         ? await getAlumnoQr(apiFetch)
         : await generateQr(apiFetch);
+      if (!qr.token.trim()) {
+        throw new Error('El servidor no devolvió un código QR válido.');
+      }
       if (isActive()) setToken(qr.token);
     } catch (loadError) {
       if (isActive()) {

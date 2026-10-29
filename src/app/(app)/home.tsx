@@ -29,7 +29,11 @@ import {
 } from '@/services/link-api';
 
 function getMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Ocurrió un error inesperado.';
+  if (!(error instanceof Error)) return 'No se pudo completar la solicitud. Inténtalo de nuevo.';
+  if (/error interno|internal server error|http 5\d\d/i.test(error.message)) {
+    return 'No se pudo completar la solicitud. Revisa tu conexión a internet e inténtalo de nuevo.';
+  }
+  return error.message;
 }
 
 export default function HomeScreen() {
@@ -305,29 +309,6 @@ export default function HomeScreen() {
                 icon="⌗"
               />
             </View>
-            <View style={[styles.card, styles.gridCard, isNarrowScreen && styles.gridCardNarrow]}>
-              <View style={styles.sectionHeading}>
-                <Text style={styles.sectionTitle}>Mis Alumnos</Text>
-                <Text style={styles.countBadge}>{activeLinks.length}</Text>
-              </View>
-              <View style={styles.gridEmptyState}>
-                <Text style={styles.emptyIcon}>{activeLinks.length ? '✓' : '⇄'}</Text>
-                <Text style={styles.helpText}>
-                  {isLoadingData
-                    ? 'Cargando vinculaciones...'
-                    : activeLinks.length
-                      ? `${activeLinks.length} alumno${activeLinks.length === 1 ? '' : 's'} vinculado${activeLinks.length === 1 ? '' : 's'}`
-                      : 'Aún no tienes alumnos vinculados.'}
-                </Text>
-              </View>
-              <ActionButton
-                disabled={false}
-                label="Ver mis alumnos"
-                onPress={() => router.push('/(app)/linked')}
-                secondary
-                icon="→"
-              />
-            </View>
           </View>
         ) : (
           <View style={styles.card}>
@@ -383,8 +364,8 @@ export default function HomeScreen() {
           <View style={styles.optionsRow}>
             <QuickOption
               icon="◉"
-              label="Perfil"
-              onPress={() => router.push('/(app)/home')}
+              label="Editar Perfil"
+              onPress={() => router.push('/(app)/editar-perfil')}
             />
             {isSupervisor ? (
               <>
@@ -416,54 +397,54 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.sectionHeading}>
-            <Text style={styles.sectionTitle}>
-              {isSupervisor ? 'Mis Alumnos' : 'Supervisores vinculados'}
-            </Text>
-            <Text style={styles.countBadge}>{activeLinks.length}</Text>
-          </View>
-          {isLoadingData ? (
-            <ActivityIndicator color={colors.primary} />
-          ) : activeLinks.length ? (
-            activeLinks.slice(0, 4).map((profile) => (
-              <View key={profile.vinculacion_id} style={styles.listItem}>
-                <View style={styles.personAvatar}>
-                  <Text style={styles.personInitial}>{profile.nombre.slice(0, 1).toUpperCase()}</Text>
-                </View>
-                <View style={styles.listText}>
-                  <Text style={styles.listTitle}>{profile.nombre}</Text>
-                  <Text style={styles.listSubtitle}>
-                    {profile.dni}{profile.facultad ? ` · ${profile.facultad}` : ''}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Desvincular a ${profile.nombre}`}
-                  disabled={unlinkingId !== null}
-                  onPress={() => confirmUnlink(profile)}
-                  style={({ pressed }) => [styles.unlinkButton, pressed && styles.pressed, unlinkingId !== null && styles.disabled]}>
-                  {unlinkingId === profile.vinculacion_id ? (
-                    <ActivityIndicator color="#b91c1c" size="small" />
-                  ) : (
-                    <Text style={styles.unlinkIcon}>🗑</Text>
-                  )}
-                </Pressable>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>⇄</Text>
-              <Text style={styles.helpText}>Todavía no tienes vinculaciones activas.</Text>
+        {!isSupervisor && (
+          <View style={styles.card}>
+            <View style={styles.sectionHeading}>
+              <Text style={styles.sectionTitle}>Supervisores vinculados</Text>
+              <Text style={styles.countBadge}>{activeLinks.length}</Text>
             </View>
-          )}
-          <ActionButton
-            disabled={false}
-            label={isSupervisor ? 'Ver mis alumnos' : 'Ver supervisores vinculados'}
-            onPress={() => router.push('/(app)/linked')}
-            secondary
-          />
-        </View>
+            {isLoadingData ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : activeLinks.length ? (
+              activeLinks.slice(0, 4).map((profile) => (
+                <View key={profile.vinculacion_id} style={styles.listItem}>
+                  <View style={styles.personAvatar}>
+                    <Text style={styles.personInitial}>{profile.nombre.slice(0, 1).toUpperCase()}</Text>
+                  </View>
+                  <View style={styles.listText}>
+                    <Text style={styles.listTitle}>{profile.nombre}</Text>
+                    <Text style={styles.listSubtitle}>
+                      {profile.dni}{profile.facultad ? ` · ${profile.facultad}` : ''}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Desvincular a ${profile.nombre}`}
+                    disabled={unlinkingId !== null}
+                    onPress={() => confirmUnlink(profile)}
+                    style={({ pressed }) => [styles.unlinkButton, pressed && styles.pressed, unlinkingId !== null && styles.disabled]}>
+                    {unlinkingId === profile.vinculacion_id ? (
+                      <ActivityIndicator color="#b91c1c" size="small" />
+                    ) : (
+                      <Text style={styles.unlinkIcon}>🗑</Text>
+                    )}
+                  </Pressable>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyState}>
+                <Text style={styles.emptyIcon}>⇄</Text>
+                <Text style={styles.helpText}>Todavía no tienes vinculaciones activas.</Text>
+              </View>
+            )}
+            <ActionButton
+              disabled={false}
+              label="Ver supervisores vinculados"
+              onPress={() => router.push('/(app)/linked')}
+              secondary
+            />
+          </View>
+        )}
       </View>
     </ScrollView>
     </SafeAreaView>
@@ -605,7 +586,6 @@ const styles = StyleSheet.create({
   listTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 14 },
   listSubtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 },
   emptyState: { alignItems: 'center', gap: 6, paddingVertical: 8 },
-  gridEmptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 8 },
   emptyIcon: { color: '#94a3b8', fontSize: 25 },
   unlinkButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.earthLight },
   unlinkIcon: { color: colors.earth, fontSize: 17 },

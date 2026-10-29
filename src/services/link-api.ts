@@ -29,7 +29,7 @@ const pendingRequestSchema = z.object({
 });
 
 const qrSchema = z.object({
-  token: z.string().min(1),
+  token: z.string().trim().min(1),
   activo: z.boolean(),
 });
 

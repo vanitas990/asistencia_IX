@@ -177,6 +177,7 @@ router.post('/marcar', async (request, response, next) => {
 
     response.status(409).json({ error: 'No se pudo registrar la asistencia. Inténtalo nuevamente.' });
   } catch (error) {
+    console.error('Error en POST /api/asistencias/marcar:', error?.message);
     next(error);
   }
 });
@@ -313,6 +314,7 @@ router.get('/', async (request, response, next) => {
       pagination: { limit, offset, hasMore: rows.length === limit },
     });
   } catch (error) {
+    console.error('Error en GET /api/asistencias:', error?.message);
     next(error);
   }
 });

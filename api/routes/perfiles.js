@@ -40,6 +40,7 @@ router.get('/yo', async (request, response, next) => {
     }
     response.json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en GET /api/perfiles/yo:', error?.message);
     next(error);
   }
 });
@@ -79,6 +80,7 @@ router.patch('/avatar', async (request, response, next) => {
     }
     response.json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en PATCH /api/perfiles/avatar:', error?.message);
     next(error);
   }
 });
@@ -114,6 +116,7 @@ router.put('/editar', async (request, response, next) => {
     }
     response.json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en PUT /api/perfiles/editar:', error?.message);
     next(error);
   }
 });

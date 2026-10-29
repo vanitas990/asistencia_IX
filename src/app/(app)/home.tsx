@@ -19,26 +19,19 @@ import ProfileAvatar from '@/components/ProfileAvatar';
 import { useAuth } from '@/context/AuthContext';
 import { cardElevation, colors, fonts } from '@/theme';
 import {
-  acceptLink,
-  getActiveLinks,
   getPendingRequests,
   requestLink,
-  type LinkedProfile,
-  type PendingRequest,
-  unlinkProfile,
 } from '@/services/link-api';
 
 export default function HomeScreen() {
   const { user, isLoading, apiFetch, updateAvatar } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [dniAlumno, setDniAlumno] = useState('');
-  const [activeLinks, setActiveLinks] = useState<LinkedProfile[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [hasLoadedHomeData, setHasLoadedHomeData] = useState(false);
   const userRole = user?.rol;
   const { width: windowWidth } = useWindowDimensions();
@@ -53,12 +46,8 @@ export default function HomeScreen() {
   const loadHomeData = useCallback(async () => {
     if (!userRole) return;
     try {
-      const [links, requests] = await Promise.all([
-        getActiveLinks(apiFetch),
-        userRole === 'alumno' ? getPendingRequests(apiFetch) : Promise.resolve([]),
-      ]);
-      setActiveLinks(links);
-      setPendingRequests(requests);
+      const requests = userRole === 'alumno' ? await getPendingRequests(apiFetch) : [];
+      setPendingRequestCount(requests.length);
       setHasLoadedHomeData(true);
     } catch (loadError) {
       console.error('No se pudieron cargar las vinculaciones del inicio.', loadError);
@@ -136,49 +125,6 @@ export default function HomeScreen() {
       console.error('No se pudo enviar la solicitud de vinculación.', requestError);
     } finally {
       setIsSubmitting(false);
-    }
-  }
-
-  async function handleAccept(requestId: number) {
-    setIsSubmitting(true);
-    setNotice(null);
-    try {
-      await acceptLink(apiFetch, requestId);
-      setNotice('Vinculación aceptada.');
-      await loadHomeData();
-    } catch (acceptError) {
-      console.error('No se pudo aceptar la solicitud de vinculación.', acceptError);
-    } finally {
-      setIsSubmitting(false);
-    }
-  }
-
-  function confirmUnlink(profile: LinkedProfile) {
-    Alert.alert(
-      'Desvincular persona',
-      `¿Quieres desvincular a ${profile.nombre}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Desvincular',
-          style: 'destructive',
-          onPress: () => void handleUnlink(profile),
-        },
-      ],
-    );
-  }
-
-  async function handleUnlink(profile: LinkedProfile) {
-    setUnlinkingId(profile.vinculacion_id);
-    setNotice(null);
-    try {
-      await unlinkProfile(apiFetch, profile.vinculacion_id);
-      setNotice('La vinculación fue eliminada.');
-      await loadHomeData();
-    } catch (unlinkError) {
-      console.error('No se pudo eliminar la vinculación desde el inicio.', unlinkError);
-    } finally {
-      setUnlinkingId(null);
     }
   }
 
@@ -295,34 +241,15 @@ export default function HomeScreen() {
         ) : (
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>Solicitudes pendientes</Text>
-            {isLoadingData ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : pendingRequests.length ? (
-              pendingRequests.slice(0, 3).map((request) => (
-                <View key={request.id} style={styles.listItem}>
-                  <View style={styles.listText}>
-                    <Text style={styles.listTitle}>
-                      {request.supervisor_nombre}
-                    </Text>
-                    <Text style={styles.listSubtitle}>{request.supervisor_facultad}</Text>
-                  </View>
-                  <ActionButton
-                    disabled={isSubmitting}
-                    label="Aceptar"
-                    onPress={() => void handleAccept(request.id)}
-                    compact
-                  />
-                </View>
-              ))
-            ) : hasLoadedHomeData ? (
-              <Text style={styles.helpText}>No tienes solicitudes pendientes.</Text>
-            ) : null}
-            <ActionButton
-              disabled={false}
-              label="Ver todas las solicitudes"
-              onPress={() => router.push('/(app)/requests')}
-              secondary
-            />
+            <Text style={styles.helpText}>
+              {isLoadingData
+                ? 'Consultando tus solicitudes…'
+                : hasLoadedHomeData
+                  ? pendingRequestCount
+                    ? `Tienes ${pendingRequestCount} solicitudes pendientes.`
+                    : 'No tienes solicitudes pendientes.'
+                  : 'No se pudieron consultar tus solicitudes ahora.'}
+            </Text>
             <View style={styles.quickActions}>
               <ActionButton
                 disabled={false}
@@ -333,7 +260,7 @@ export default function HomeScreen() {
               />
               <ActionButton
                 disabled={false}
-                label="Escanear QR del Salón"
+                label="Marcar Asistencia"
                 onPress={() => router.push({ pathname: '/(app)/scan', params: { mode: 'attendance' } })}
                 icon="⌗"
               />
@@ -379,54 +306,6 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {!isSupervisor && (
-          <View style={styles.card}>
-            <View style={styles.sectionHeading}>
-              <Text style={styles.sectionTitle}>Supervisores vinculados</Text>
-              <Text style={styles.countBadge}>{activeLinks.length}</Text>
-            </View>
-            {isLoadingData ? (
-              <ActivityIndicator color={colors.primary} />
-            ) : activeLinks.length ? (
-              activeLinks.slice(0, 4).map((profile) => (
-                <View key={profile.vinculacion_id} style={styles.listItem}>
-                  <View style={styles.personAvatar}>
-                    <Text style={styles.personInitial}>{profile.nombre.slice(0, 1).toUpperCase()}</Text>
-                  </View>
-                  <View style={styles.listText}>
-                    <Text style={styles.listTitle}>{profile.nombre}</Text>
-                    <Text style={styles.listSubtitle}>
-                      {profile.dni}{profile.facultad ? ` · ${profile.facultad}` : ''}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Desvincular a ${profile.nombre}`}
-                    disabled={unlinkingId !== null}
-                    onPress={() => confirmUnlink(profile)}
-                    style={({ pressed }) => [styles.unlinkButton, pressed && styles.pressed, unlinkingId !== null && styles.disabled]}>
-                    {unlinkingId === profile.vinculacion_id ? (
-                      <ActivityIndicator color="#b91c1c" size="small" />
-                    ) : (
-                      <Text style={styles.unlinkIcon}>🗑</Text>
-                    )}
-                  </Pressable>
-                </View>
-              ))
-            ) : (
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyIcon}>⇄</Text>
-                <Text style={styles.helpText}>Todavía no tienes vinculaciones activas.</Text>
-              </View>
-            )}
-            <ActionButton
-              disabled={false}
-              label="Ver supervisores vinculados"
-              onPress={() => router.push('/(app)/linked')}
-              secondary
-            />
-          </View>
-        )}
       </View>
     </ScrollView>
     </SafeAreaView>

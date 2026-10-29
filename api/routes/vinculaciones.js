@@ -53,6 +53,7 @@ router.post('/por-qr', requireRole('supervisor'), async (request, response, next
     `;
     response.json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en POST /api/vinculaciones/por-qr:', error?.message);
     next(error);
   }
 });
@@ -101,6 +102,7 @@ router.post('/solicitar', requireRole('supervisor'), async (request, response, n
     `;
     response.status(201).json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en POST /api/vinculaciones/solicitar:', error?.message);
     if (error?.code === '23505') {
       response.status(409).json({ error: 'Ya existe una solicitud o vinculación con ese alumno.' });
       return;
@@ -129,6 +131,7 @@ router.get('/pendientes', requireRole('alumno'), async (request, response, next)
     `;
     response.json({ data: rows });
   } catch (error) {
+    console.error('Error en GET /api/vinculaciones/pendientes:', error?.message);
     next(error);
   }
 });
@@ -155,6 +158,7 @@ router.post('/aceptar', requireRole('alumno'), async (request, response, next) =
     }
     response.json({ data: rows[0] });
   } catch (error) {
+    console.error('Error en POST /api/vinculaciones/aceptar:', error?.message);
     next(error);
   }
 });
@@ -179,6 +183,7 @@ router.delete('/:id', async (request, response, next) => {
     }
     response.json({ data: { id: rows[0].id, deleted: true } });
   } catch (error) {
+    console.error('Error en DELETE /api/vinculaciones/:id:', error?.message);
     next(error);
   }
 });
@@ -216,6 +221,7 @@ router.get('/activas', async (request, response, next) => {
       `;
     response.json({ data: rows });
   } catch (error) {
+    console.error('Error en GET /api/vinculaciones/activas:', error?.message);
     next(error);
   }
 });

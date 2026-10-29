@@ -21,7 +21,6 @@ interface MenuItem {
 export default function AppDrawerContent(props: DrawerContentComponentProps) {
   const { user, logout } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const isSupervisor = user?.rol === 'supervisor';
   const menuItems: MenuItem[] = [
@@ -54,14 +53,12 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
   }
 
   async function handleSignOut() {
-    setError(null);
     setIsSigningOut(true);
     try {
       await logout();
       router.replace('/');
     } catch (logoutError) {
       console.error('No se pudo cerrar la sesión desde el menú.', logoutError);
-      setError(logoutError instanceof Error ? logoutError.message : 'No se pudo cerrar la sesión.');
       setIsSigningOut(false);
     }
   }
@@ -127,7 +124,6 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
       </DrawerContentScrollView>
 
       <View style={styles.footer}>
-        {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         <Pressable
           accessibilityRole="button"
           disabled={isSigningOut}
@@ -184,7 +180,6 @@ const styles = StyleSheet.create({
   },
   logoutIcon: { color: '#b91c1c', fontSize: 20 },
   logoutText: { color: '#b91c1c', fontSize: 15, fontWeight: '700' },
-  error: { color: '#b91c1c', fontSize: 12, marginBottom: 8 },
   pressed: { backgroundColor: '#f1f5f9' },
   disabled: { opacity: 0.6 },
 });

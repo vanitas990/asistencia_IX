@@ -7,6 +7,7 @@ import { authenticate, requireRole } from '../middleware/authenticate.js';
 const router = Router();
 
 function logQrFailure(path, error) {
+  console.error(`Error en ${path}:`, error?.message);
   console.error(`QR endpoint ${path} failed:`, {
     name: error?.name ?? 'UnknownError',
     message: error?.message,
@@ -36,7 +37,7 @@ router.get(
       });
       response.json({ data: rows[0] });
     } catch (error) {
-      console.error('Error exacto generando QR alumno:', error);
+      console.error('Error exacto generando QR alumno:', error?.message);
       logQrFailure('GET /api/qr/mi-qr-alumno', error);
       next(error);
     }

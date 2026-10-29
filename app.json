@@ -47,6 +47,16 @@
       ],
       "expo-secure-store",
       "expo-sharing",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": false,
+          "savePhotosPermission": "Permite que Asistencia IX guarde tu código QR en la galería.",
+          "granularPermissions": [
+            "photo"
+          ]
+        }
+      ],
       "expo-font"
     ],
     "experiments": {

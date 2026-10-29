@@ -1,6 +1,6 @@
-import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as MediaLibrary from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
-import QRCodeEncoder from 'qrcode';
 import QRCode from 'react-native-qrcode-svg';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -8,6 +8,10 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import { useAuth } from '@/context/AuthContext';
 import { generateQr, getAlumnoQr, regenerateQr } from '@/services/link-api';
 import { cardElevation, colors, fonts } from '@/theme';
+
+type QrSvgRef = {
+  toDataURL: (callback: (base64: string) => void) => void;
+};
 
 export default function QrScreen() {
   const { apiFetch, user } = useAuth();
@@ -18,6 +22,7 @@ export default function QrScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(false);
+  const qrRef = useRef<QrSvgRef | null>(null);
 
   const loadQr = useCallback(async (isActive: () => boolean = () => isMountedRef.current) => {
     if (isActive()) setError(null);
@@ -51,35 +56,75 @@ export default function QrScreen() {
     };
   }, [loadQr]);
 
-  async function handleExport() {
-    if (!token) return;
-    setIsExporting(true);
-    setError(null);
-    try {
-      const svg = await QRCodeEncoder.toString(token, {
-        type: 'svg',
-        errorCorrectionLevel: 'H',
-        margin: 2,
-        width: 280,
-      });
-      const qrOwner = userRole === 'alumno' ? 'alumno' : 'supervisor';
-      const html = `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><style>body{font-family:Arial,sans-serif;text-align:center;padding:32px;color:#0f172a}svg{width:260px;height:260px}.token{font-size:12px;word-break:break-all;color:#475569}</style></head><body><h1>Asistencia IX</h1><p>Código QR estático del ${qrOwner}</p>${svg}<p class="token">${token}</p></body></html>`;
+  async function getQrBase64() {
+    const qr = qrRef.current;
+    if (!token || !qr) {
+      throw new Error('El código QR todavía no está listo para exportar.');
+    }
 
-      if (Platform.OS === 'web') {
-        await Print.printAsync({ html });
-      } else {
-        const file = await Print.printToFileAsync({ html });
-        if (!(await Sharing.isAvailableAsync())) {
-          throw new Error('La función para compartir archivos no está disponible en este dispositivo.');
-        }
-        await Sharing.shareAsync(file.uri, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Compartir mi código QR',
+    return new Promise<string>((resolve, reject) => {
+      try {
+        qr.toDataURL((base64) => {
+          if (!base64) {
+            reject(new Error('No se pudo generar la imagen del código QR.'));
+            return;
+          }
+          resolve(base64);
         });
+      } catch (qrError) {
+        reject(qrError);
       }
-    } catch (exportError) {
-      console.error('No se pudo exportar el código QR.', exportError);
-      Alert.alert('No se pudo exportar el QR', 'Inténtalo nuevamente.');
+    });
+  }
+
+  async function writeQrImage() {
+    if (Platform.OS === 'web') {
+      throw new Error('Guardar o compartir una imagen QR desde el almacenamiento local no está disponible en web.');
+    }
+    if (!FileSystem.cacheDirectory) {
+      throw new Error('No se encontró el directorio temporal para guardar el código QR.');
+    }
+
+    const base64 = await getQrBase64();
+    const fileUri = `${FileSystem.cacheDirectory}qr_alumno.png`;
+    await FileSystem.writeAsStringAsync(fileUri, base64, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    return fileUri;
+  }
+
+  async function handleSaveToGallery() {
+    setIsExporting(true);
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
+      if (!permission.granted) {
+        console.error('No se concedió permiso para guardar el código QR en la galería.');
+        return;
+      }
+
+      const fileUri = await writeQrImage();
+      await MediaLibrary.saveToLibraryAsync(fileUri);
+      Alert.alert('QR guardado', 'El código QR se guardó en tu galería.');
+    } catch (saveError) {
+      console.error('No se pudo guardar el código QR en la galería.', saveError);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleShare() {
+    setIsExporting(true);
+    try {
+      if (!(await Sharing.isAvailableAsync())) {
+        throw new Error('La función para compartir archivos no está disponible en este dispositivo.');
+      }
+      const fileUri = await writeQrImage();
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'image/png',
+        dialogTitle: 'Compartir mi QR',
+      });
+    } catch (shareError) {
+      console.error('No se pudo compartir el código QR.', shareError);
     } finally {
       setIsExporting(false);
     }
@@ -130,19 +175,32 @@ export default function QrScreen() {
         ) : token ? (
           <>
             <View style={styles.qrFrame}>
-              <QRCode value={token} size={240} color={colors.primary} backgroundColor={colors.surface} />
+              <QRCode
+                getRef={(instance) => {
+                  qrRef.current = instance && typeof instance.toDataURL === 'function'
+                    ? instance
+                    : null;
+                }}
+                value={token}
+                size={240}
+                color={colors.primary}
+                backgroundColor={colors.surface}
+              />
             </View>
             <Text selectable style={styles.token}>{token}</Text>
             <Pressable
               accessibilityRole="button"
               disabled={isExporting || isRegenerating}
-              onPress={() => void handleExport()}
+              onPress={() => void handleSaveToGallery()}
               style={({ pressed }) => [styles.button, pressed && styles.pressed, isExporting && styles.disabled]}>
-              {isExporting ? (
-                <ActivityIndicator color="#ffffff" />
-              ) : (
-                <Text style={styles.buttonText}>Exportar PDF</Text>
-              )}
+              {isExporting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Guardar en Galería</Text>}
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={isExporting || isRegenerating}
+              onPress={() => void handleShare()}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, (isExporting || isRegenerating) && styles.disabled]}>
+              <Text style={styles.secondaryButtonText}>Compartir</Text>
             </Pressable>
           </>
         ) : null}

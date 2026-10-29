@@ -87,9 +87,7 @@ export default function LinkedScreen() {
               <View style={styles.details}>
                 <Text style={styles.name}>{profile.nombre} {profile.apellido}</Text>
                 <Text style={styles.meta}>DNI {profile.dni}</Text>
-                <Text style={styles.meta}>
-                  {profile.carrera}{profile.ciclo ? ` · ${profile.ciclo}` : ''}
-                </Text>
+                <Text style={styles.meta}>{profile.carrera}</Text>
                 {profile.facultad && <Text style={styles.meta}>{profile.facultad}</Text>}
               </View>
               <Pressable

@@ -44,7 +44,6 @@ function redactRegistrationValue(value, registrationData) {
     registrationData?.apellidos,
     registrationData?.facultad,
     registrationData?.carrera,
-    registrationData?.ciclo,
     registrationData?.password,
   ].filter((item) => typeof item === 'string' && item.length > 0);
 
@@ -96,7 +95,6 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           apellidos,
           facultad,
           carrera,
-          ciclo,
           password_hash
         )
         VALUES (
@@ -107,7 +105,6 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           ${studentRecord?.apellidos ?? parsed.data.apellido},
           ${parsed.data.rol === 'supervisor' ? null : studentRecord.facultad},
           ${studentRecord?.carrera ?? parsed.data.carrera},
-          ${parsed.data.rol === 'supervisor' ? null : studentRecord.ciclo},
           ${passwordHash}
         )
         RETURNING
@@ -119,7 +116,6 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           apellidos AS apellido,
           facultad,
           carrera,
-          ciclo,
           created_at::text AS created_at,
           avatar_url
       `;
@@ -176,7 +172,6 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
         apellidos AS apellido,
         facultad,
         carrera,
-        ciclo,
         created_at::text AS created_at,
         avatar_url,
         password_hash
@@ -250,7 +245,6 @@ router.post('/refresh', authRateLimit('refresh'), async (request, response, next
         apellidos AS apellido,
         facultad,
         carrera,
-        ciclo,
         created_at::text AS created_at,
         avatar_url
       FROM perfiles

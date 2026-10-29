@@ -5,7 +5,7 @@ import { ApiRequestError } from '@/services/auth-api';
 import type { User } from '@/types';
 
 export type EditableProfile = Pick<User, 'nombre' | 'apellido' | 'carrera'>
-  & Partial<Pick<User, 'facultad' | 'ciclo'>>;
+  & Partial<Pick<User, 'facultad'>>;
 
 async function parseProfileResponse(response: Response, fallbackMessage: string): Promise<User> {
   let body: unknown;

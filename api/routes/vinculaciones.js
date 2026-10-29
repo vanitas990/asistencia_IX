@@ -195,8 +195,7 @@ router.get('/activas', async (request, response, next) => {
           p.apellidos AS apellido,
           p.dni,
           p.facultad,
-          p.carrera,
-          p.ciclo
+          p.carrera
         FROM vinculaciones AS v
         INNER JOIN perfiles AS p ON p.id = v.alumno_id
         WHERE v.supervisor_id = ${request.auth.id}
@@ -211,8 +210,7 @@ router.get('/activas', async (request, response, next) => {
           p.apellidos AS apellido,
           p.dni,
           p.facultad,
-          p.carrera,
-          p.ciclo
+          p.carrera
         FROM vinculaciones AS v
         INNER JOIN perfiles AS p ON p.id = v.supervisor_id
         WHERE v.alumno_id = ${request.auth.id}

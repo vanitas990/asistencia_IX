@@ -23,7 +23,6 @@ export default function EditProfileScreen() {
   const [apellido, setApellido] = useState(user?.apellido ?? '');
   const [facultad, setFacultad] = useState(user?.facultad ?? '');
   const [carrera, setCarrera] = useState(user?.carrera ?? '');
-  const [ciclo, setCiclo] = useState(user?.ciclo ?? '');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,9 +32,11 @@ export default function EditProfileScreen() {
       nombre: nombre.trim(),
       apellido: apellido.trim(),
       carrera: carrera.trim(),
-      ...(user.rol === 'alumno' ? { facultad: facultad.trim(), ciclo: ciclo.trim() } : {}),
+      ...(user.rol === 'alumno' ? { facultad: facultad.trim() } : {}),
     };
-    if (Object.values(fields).some((value) => !value)) {
+    if (Object.entries(fields).some(([field, value]) => (
+      !value && !(field === 'apellido' && user.rol === 'alumno')
+    ))) {
       setError('Completa todos los campos antes de guardar.');
       return;
     }
@@ -80,7 +81,6 @@ export default function EditProfileScreen() {
               <>
                 <ProfileInput label="Facultad" value={facultad} onChangeText={setFacultad} />
                 <ProfileInput label="Carrera" value={carrera} onChangeText={setCarrera} />
-                <ProfileInput label="Ciclo" value={ciclo} onChangeText={setCiclo} />
               </>
             )}
             {user.rol === 'supervisor' && (

@@ -15,7 +15,7 @@ const sections = [
     title: '2. Datos que recopilamos',
     paragraphs: [
       'Para el funcionamiento de la aplicación, recopilamos los siguientes datos:',
-      '• Nombre y apellido.\n• DNI de 8 dígitos.\n• Facultad, carrera y ciclo académico.\n• Historial de asistencias (fecha, hora y tipo de marcación: entrada o salida).\n• Fotografía de perfil (opcional, si el usuario decide subirla).',
+      '• Nombre y apellido.\n• DNI de 8 dígitos.\n• Facultad y carrera.\n• Historial de asistencias (fecha, hora y tipo de marcación: entrada o salida).\n• Fotografía de perfil (opcional, si el usuario decide subirla).',
     ],
   },
   {

@@ -1,5 +1,8 @@
 import cors from 'cors';
 import express from 'express';
+import { existsSync, statSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { sql } from './db.js';
 import asistenciasRouter from './routes/asistencias.js';
@@ -50,6 +53,26 @@ app.use('/api/asistencias', asistenciasRouter);
 app.use('/api/perfiles', profileRouter);
 app.use('/api/vinculaciones', vinculacionesRouter);
 app.use('/api/qr', qrRouter);
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+let webIndexPath;
+for (const directoryName of ['dist', 'public']) {
+  const directoryPath = resolve(projectRoot, directoryName);
+  if (!existsSync(directoryPath) || !statSync(directoryPath).isDirectory()) continue;
+
+  app.use(express.static(directoryPath));
+  const candidateIndexPath = resolve(directoryPath, 'index.html');
+  if (existsSync(candidateIndexPath)) {
+    webIndexPath = candidateIndexPath;
+    break;
+  }
+}
+
+if (webIndexPath) {
+  app.get(/^(?!\/api(?:\/|$)).*/, (_request, response) => {
+    response.sendFile(webIndexPath);
+  });
+}
 
 function logDatabaseError(error, context) {
   const details = {

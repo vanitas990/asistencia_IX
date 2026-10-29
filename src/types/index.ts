@@ -9,7 +9,6 @@ export interface Perfil {
   apellido: string;
   facultad: string | null;
   carrera: string;
-  ciclo: string | null;
   created_at: string;
   avatar_url: string | null;
 }

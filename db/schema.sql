@@ -19,7 +19,6 @@ CREATE TABLE public.perfiles (
   apellidos text NOT NULL,
   facultad text,
   carrera text NOT NULL,
-  ciclo text,
   created_at timestamptz DEFAULT now(),
   password_hash text,
   avatar_url text

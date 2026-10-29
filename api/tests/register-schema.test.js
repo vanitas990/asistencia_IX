@@ -12,7 +12,7 @@ const validSupervisor = {
   password: 'secure-pass-123',
 };
 
-test('accepts supervisor registration without faculty or cycle', () => {
+test('accepts supervisor registration without faculty', () => {
   assert.equal(registerSchema.safeParse(validSupervisor).success, true);
 });
 
@@ -35,11 +35,20 @@ test('accepts the exact test-api.http supervisor payload using plural name field
   }
 });
 
-test('accepts nullable optional supervisor faculty and cycle', () => {
+test('accepts nullable optional supervisor faculty', () => {
   assert.equal(registerSchema.safeParse({
     ...validSupervisor,
     facultad: null,
-    ciclo: null,
+  }).success, true);
+});
+
+test('accepts students with a blank surname supplied by the university API', () => {
+  assert.equal(registerSchema.safeParse({
+    ...validSupervisor,
+    nombre: 'Nombre completo del alumno',
+    apellido: '',
+    facultad: 'Facultad de prueba',
+    rol: 'alumno',
   }).success, true);
 });
 

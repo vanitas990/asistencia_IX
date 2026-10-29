@@ -26,7 +26,6 @@ const emptyForm: RegisterFormData = {
   apellido: '',
   facultad: '',
   carrera: '',
-  ciclo: '',
   password: '',
   rol: 'alumno',
 };
@@ -58,7 +57,7 @@ export default function RegisterScreen() {
         ...current,
         dni: value,
         ...(current.rol === 'alumno'
-          ? { nombre: '', apellido: '', facultad: '', carrera: '', ciclo: '' }
+          ? { nombre: '', apellido: '', facultad: '', carrera: '' }
           : {}),
       }));
       setFormError(null);
@@ -94,7 +93,6 @@ export default function RegisterScreen() {
           apellido: student.apellidos,
           facultad: student.facultad,
           carrera: student.carrera,
-          ciclo: student.ciclo,
         }
         : current);
       setStudentDataDni(dni);
@@ -133,7 +131,7 @@ export default function RegisterScreen() {
     try {
       let payload: RegisterFormData;
       if (result.data.rol === 'supervisor') {
-        const { facultad: _facultad, ciclo: _ciclo, ...supervisorData } = result.data;
+        const { facultad: _facultad, ...supervisorData } = result.data;
         payload = supervisorData;
         console.log('Payload Supervisor (datos sensibles redactados):', JSON.stringify({
           ...supervisorData,
@@ -250,7 +248,6 @@ export default function RegisterScreen() {
             <>
               {renderInput('facultad', 'Facultad', 'Nombre de la facultad', false, false)}
               {renderInput('carrera', 'Carrera', 'Nombre de la carrera', false, false)}
-              {renderInput('ciclo', 'Ciclo', 'Ej. V', false, false)}
             </>
           ) : (
             renderInput('carrera', 'Especialidad / Área', 'Tu especialidad o área')
@@ -278,7 +275,6 @@ export default function RegisterScreen() {
                       apellido: role === 'alumno' ? '' : current.apellido,
                       facultad: '',
                       carrera: role === 'alumno' ? '' : current.carrera,
-                      ciclo: '',
                     }));
                     setFormError(null);
                     clearAuthError();

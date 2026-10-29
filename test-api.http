@@ -25,3 +25,7 @@ Content-Type: application/json
   "carrera": "Ingeniería de Software",
   "ciclo": "V"
 }
+
+### Probar API UNHEVAL (Buscar por DNI)
+GET https://innova.unheval.edu.pe/api/datos/personas?dni=76683028
+X-API-Key: Py31JcTDMEZnMmUNc1M8ZSX7Svh12IY6QjDeRqILCO6XohFP

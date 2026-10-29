@@ -2,10 +2,9 @@ import { z } from 'zod';
 
 const studentSchema = z.object({
   nombres: z.string().trim().min(1),
-  apellidos: z.string().trim().min(1),
+  apellidos: z.string(),
   facultad: z.string().trim().min(1),
   carrera: z.string().trim().min(1),
-  ciclo: z.string().trim().min(1),
 });
 
 export type StudentRecord = z.infer<typeof studentSchema>;

@@ -16,7 +16,6 @@ const linkedProfileSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
   facultad: z.string().nullable(),
   carrera: z.string(),
-  ciclo: z.string().nullable(),
 });
 
 const pendingRequestSchema = z.object({

@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -24,23 +24,38 @@ export default function ScanScreen() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const scanLocked = useRef(false);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
 
   async function handleBarcodeScanned(result: BarcodeScanningResult) {
-    if (scanLocked.current || result.type !== 'qr' || !result.data.trim()) return;
+    if (scanLocked.current || !result || result.type !== 'qr') return;
     scanLocked.current = true;
     setIsProcessing(true);
     setScanError(null);
 
     try {
+      const qrData = typeof result.data === 'string' ? result.data.trim() : '';
+      if (!qrData) {
+        throw new Error('El código QR no contiene datos.');
+      }
+
       if (mode === 'attendance') {
-        const attendance = await markAttendance(apiFetch, result.data.trim());
+        const attendance = await markAttendance(apiFetch, qrData);
+        if (!isMounted.current) return;
         Alert.alert(
           'Asistencia registrada',
           `Asistencia registrada: ${attendance.tipo === 'entrada' ? 'Entrada' : 'Salida'}`,
           [{ text: 'Aceptar', onPress: () => router.back() }],
         );
       } else {
-        await linkByQr(apiFetch, result.data.trim());
+        await linkByQr(apiFetch, qrData);
+        if (!isMounted.current) return;
         Alert.alert(
           'Vinculación completada',
           'El alumno fue agregado a tus vinculaciones.',
@@ -64,14 +79,16 @@ export default function ScanScreen() {
       if (!isDuplicateAttendance) {
         console.error('No se pudo procesar el código QR escaneado.', error);
       }
+      if (!isMounted.current) return;
       setScanError(message);
       Alert.alert(
-        isDuplicateAttendance ? 'Asistencia ya registrada' : 'No se pudo completar',
-        message,
+        isDuplicateAttendance ? 'Asistencia ya registrada' : 'Error',
+        isDuplicateAttendance ? message : 'No se pudo procesar el código QR',
       );
-      scanLocked.current = false;
     } finally {
-      setIsProcessing(false);
+      if (isMounted.current) {
+        setIsProcessing(false);
+      }
     }
   }
 

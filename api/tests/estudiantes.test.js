@@ -149,3 +149,31 @@ test('returns 404 for an upstream not-found response', async () => {
     restoreEnvironment();
   }
 });
+
+test('logs university request diagnostics and redacts the DNI from connection logs', async () => {
+  setApiEnvironment();
+  const originalLog = console.log;
+  const originalError = console.error;
+  const diagnostics = [];
+  console.log = (...values) => diagnostics.push(values);
+  console.error = (...values) => diagnostics.push(values);
+  globalThis.fetch = async () => {
+    throw new Error('connection failed for DNI 76683028');
+  };
+
+  try {
+    await assert.rejects(lookupUniversityStudent('76683028'), /connection failed/);
+    assert.ok(diagnostics.some(([label, url]) => (
+      label === '1. Consultando a UNHEVAL con URL:'
+      && String(url).includes('dni=%5BREDACTED%5D')
+    )));
+    assert.ok(diagnostics.some(([label, message]) => (
+      label === 'Error real de conexión a UNHEVAL:'
+      && message === 'connection failed for DNI [REDACTED_DNI]'
+    )));
+  } finally {
+    console.log = originalLog;
+    console.error = originalError;
+    restoreEnvironment();
+  }
+});

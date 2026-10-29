@@ -51,6 +51,12 @@ function studentLookupUrl(baseUrl, dni) {
 }
 
 async function fetchJson(url, apiKey, signal) {
+  const diagnosticUrl = new URL(url);
+  if (diagnosticUrl.searchParams.has('dni')) {
+    diagnosticUrl.searchParams.set('dni', '[REDACTED]');
+  }
+  console.log('1. Consultando a UNHEVAL con URL:', diagnosticUrl.toString());
+
   let response;
   try {
     response = await fetch(url, {
@@ -61,13 +67,20 @@ async function fetchJson(url, apiKey, signal) {
       signal,
     });
   } catch (error) {
+    const dni = new URL(url).searchParams.get('dni');
+    const message = typeof error?.message === 'string' && dni
+      ? error.message.replaceAll(dni, '[REDACTED_DNI]')
+      : error?.message;
+    console.error('Error real de conexión a UNHEVAL:', message);
     if (error?.name === 'AbortError') {
       throw new StudentLookupError('La consulta universitaria excedió el tiempo de espera.', 504);
     }
     throw error;
   }
 
+  console.log('2. Status de respuesta UNHEVAL:', response.status);
   if (response.status === 404) {
+    console.log('3. ¿La API devolvió data?', 0);
     return { response, body: null };
   }
 
@@ -80,6 +93,12 @@ async function fetchJson(url, apiKey, signal) {
     }
   }
 
+  console.log(
+    '3. ¿La API devolvió data?',
+    body && typeof body === 'object' && 'data' in body && Array.isArray(body.data)
+      ? body.data.length
+      : 0,
+  );
   return { response, body };
 }
 

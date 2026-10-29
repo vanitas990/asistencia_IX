@@ -44,6 +44,12 @@ function endpointUrl(baseUrl, path = '') {
   return new URL(path, url);
 }
 
+function studentLookupUrl(baseUrl, dni) {
+  const url = endpointUrl(baseUrl, 'personas');
+  url.searchParams.set('dni', dni);
+  return url;
+}
+
 async function fetchJson(url, apiKey, signal) {
   let response;
   try {
@@ -126,7 +132,7 @@ export async function lookupUniversityStudent(dni) {
   const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
     const studentResult = await fetchJson(
-      endpointUrl(externalApiUrl, encodeURIComponent(dni)),
+      studentLookupUrl(externalApiUrl, dni),
       apiKey,
       controller.signal,
     );
@@ -144,13 +150,12 @@ export async function lookupUniversityStudent(dni) {
     if (!studentRows.success) {
       throw new StudentLookupError('La API universitaria devolvió datos no válidos.', 502);
     }
-
+    if (!studentRows.data.ok) {
+      throw new StudentLookupError('La API universitaria no pudo completar la consulta.', 502);
+    }
     const firstRecord = studentRows.data.data[0];
     if (!firstRecord) {
       throw new StudentLookupError('Alumno no encontrado.', 404);
-    }
-    if (!studentRows.data.ok) {
-      throw new StudentLookupError('La API universitaria no pudo completar la consulta.', 502);
     }
 
     const personType = firstRecord

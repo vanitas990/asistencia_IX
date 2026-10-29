@@ -6,7 +6,7 @@ import { lookupUniversityStudent, StudentLookupError } from '../utils/estudiante
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.UNHEVAL_API_URL;
 const originalApiKey = process.env.UNHEVAL_API_KEY;
-const apiBaseUrl = 'https://university.example/api/estudiantes';
+const apiBaseUrl = 'https://university.example/api/datos/';
 
 function setApiEnvironment() {
   process.env.UNHEVAL_API_URL = apiBaseUrl;
@@ -54,7 +54,7 @@ test('maps the university student and resolves the faculty using the API key', a
   const requests = [];
   globalThis.fetch = async (url, options) => {
     requests.push({ url: String(url), options });
-    if (String(url) === `${apiBaseUrl}/76683028`) {
+    if (String(url) === `${apiBaseUrl}personas?dni=76683028`) {
       return new Response(JSON.stringify(studentResponse()), { status: 200 });
     }
     return new Response(JSON.stringify({
@@ -71,8 +71,8 @@ test('maps the university student and resolves the faculty using the API key', a
       facultad: 'Facultad de Ciencias Agrarias',
     });
     assert.deepEqual(requests.map(({ url }) => url), [
-      `${apiBaseUrl}/76683028`,
-      `${apiBaseUrl}/facultades`,
+      `${apiBaseUrl}personas?dni=76683028`,
+      'https://university.example/api/datos/facultades',
     ]);
     assert.ok(requests.every(({ options }) => options.headers['X-API-Key'] === 'test-api-key'));
   } finally {
@@ -80,9 +80,31 @@ test('maps the university student and resolves the faculty using the API key', a
   }
 });
 
+test('accepts the university person type Estudiante case-insensitively', async () => {
+  setApiEnvironment();
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/personas?')) {
+      return new Response(JSON.stringify(studentResponse({
+        tipo_persona: { tipo: 'ESTUDIANTE' },
+      })), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      ok: true,
+      data: [{ id_facultad: 4, nombre: 'Facultad de Ciencias Agrarias' }],
+    }), { status: 200 });
+  };
+
+  try {
+    const result = await lookupUniversityStudent('76683028');
+    assert.equal(result.nombre, 'ACOSTA JIMENEZ RUSBEL OSCAR');
+  } finally {
+    restoreEnvironment();
+  }
+});
+
 test('returns 404 when the university API has no matching student', async () => {
   setApiEnvironment();
-  globalThis.fetch = async () => new Response(JSON.stringify({ ok: false, data: [] }), { status: 200 });
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: true, data: [] }), { status: 200 });
 
   try {
     await assert.rejects(

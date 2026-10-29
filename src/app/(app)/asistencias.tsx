@@ -7,27 +7,39 @@ import { getAttendanceHistory, type AttendanceRecord } from '@/services/attendan
 import { cardElevation, colors, fonts } from '@/theme';
 import { formatLocalTimestamp } from '@/utils/date';
 
+function getLimaDate() {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
 export default function AttendancesScreen() {
   const { apiFetch, user, isLoading: isAuthLoading } = useAuth();
   const userRole = user?.rol;
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [hasLoadedAttendance, setHasLoadedAttendance] = useState(false);
   const isRequestInFlight = useRef(false);
-  const hasLoadedAttendance = useRef(false);
+  const hasObservedAttendance = useRef(false);
   const latestAttendanceId = useRef<number | null>(null);
 
   const loadAttendance = useCallback(async (showLoading: boolean) => {
     if (!userRole || isRequestInFlight.current) return;
     isRequestInFlight.current = true;
     if (showLoading) setIsLoading(true);
-    setError(null);
     try {
-      const result = await getAttendanceHistory(apiFetch);
+      const result = userRole === 'supervisor'
+        ? await getAttendanceHistory(apiFetch, 50, undefined, getLimaDate(), true)
+        : await getAttendanceHistory(apiFetch);
       const newestId = result.data[0]?.id ?? null;
       if (
         userRole === 'supervisor'
-        && hasLoadedAttendance.current
+        && hasObservedAttendance.current
         && newestId !== null
         && (latestAttendanceId.current === null || newestId > latestAttendanceId.current)
       ) {
@@ -38,11 +50,11 @@ export default function AttendancesScreen() {
       if (newestId !== null && (latestAttendanceId.current === null || newestId > latestAttendanceId.current)) {
         latestAttendanceId.current = newestId;
       }
-      hasLoadedAttendance.current = true;
+      hasObservedAttendance.current = true;
+      setHasLoadedAttendance(true);
       setRecords(result.data);
     } catch (loadError) {
       console.error('No se pudo cargar el historial de asistencias.', loadError);
-      setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el historial.');
     } finally {
       isRequestInFlight.current = false;
       setIsLoading(false);
@@ -51,7 +63,7 @@ export default function AttendancesScreen() {
 
   useEffect(() => {
     if (!userRole) return;
-    // State updates happen only after the asynchronous API request completes.
+    // Initial loading is triggered after authentication resolves.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAttendance(true);
   }, [isAuthLoading, loadAttendance, userRole]);
@@ -91,9 +103,10 @@ export default function AttendancesScreen() {
           <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
           <Text style={styles.title}>{isSupervisor ? 'Asistencias de alumnos' : 'Mis asistencias'}</Text>
           <Text style={styles.subtitle}>
-            {isSupervisor ? 'Actualización automática cada 15 segundos.' : 'Tu historial de entradas y salidas.'}
+            {isSupervisor
+              ? 'Asistencias de hoy (hora de Perú) · Actualización automática cada 15 segundos.'
+              : 'Tu historial de entradas y salidas.'}
           </Text>
-          {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
           {isLoading && <ActivityIndicator color={colors.primary} style={styles.loader} />}
         </View>
       )}
@@ -113,7 +126,7 @@ export default function AttendancesScreen() {
           </View>
         );
       }}
-      ListEmptyComponent={!isLoading ? (
+      ListEmptyComponent={!isLoading && hasLoadedAttendance && records.length === 0 ? (
         <View style={styles.emptyState}>
           <Text style={styles.emptyIcon}>◷</Text>
           <Text style={styles.empty}>Aún no hay registros de asistencia.</Text>
@@ -142,7 +155,6 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 22 },
   subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
   loader: { marginTop: 8 },
-  error: { color: colors.danger, fontFamily: fonts.body, fontSize: 13, marginTop: 4 },
   recordCard: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, ...cardElevation },
   recordDetails: { flex: 1, gap: 5 },
   personName: { color: colors.text, fontFamily: fonts.display, fontSize: 15 },

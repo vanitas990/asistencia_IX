@@ -36,6 +36,7 @@ router.get(
       });
       response.json({ data: rows[0] });
     } catch (error) {
+      console.error('Error exacto generando QR alumno:', error);
       logQrFailure('GET /api/qr/mi-qr-alumno', error);
       next(error);
     }

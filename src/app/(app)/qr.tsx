@@ -32,7 +32,7 @@ export default function QrScreen() {
     } catch (loadError) {
       if (isActive()) {
         console.error('No se pudo cargar el código QR.', loadError);
-        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el código QR.');
+        setError('load');
       }
     } finally {
       if (isActive()) setIsLoading(false);
@@ -79,7 +79,7 @@ export default function QrScreen() {
       }
     } catch (exportError) {
       console.error('No se pudo exportar el código QR.', exportError);
-      setError(exportError instanceof Error ? exportError.message : 'No se pudo exportar el PDF.');
+      Alert.alert('No se pudo exportar el QR', 'Inténtalo nuevamente.');
     } finally {
       setIsExporting(false);
     }
@@ -108,7 +108,7 @@ export default function QrScreen() {
       setToken(qr.token);
     } catch (regenerateError) {
       console.error('No se pudo regenerar el código QR del supervisor.', regenerateError);
-      setError(regenerateError instanceof Error ? regenerateError.message : 'No se pudo regenerar el código QR.');
+      setError('load');
     } finally {
       setIsRegenerating(false);
     }
@@ -125,7 +125,6 @@ export default function QrScreen() {
             : 'Comparte este QR para que los alumnos marquen su asistencia.'}
         </Text>
 
-        {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {isLoading ? (
           <ActivityIndicator color={colors.primary} size="large" />
         ) : token ? (
@@ -174,7 +173,7 @@ export default function QrScreen() {
             void loadQr();
           }}
           style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, isLoading && styles.disabled]}>
-          <Text style={styles.secondaryButtonText}>Actualizar QR</Text>
+          <Text style={styles.secondaryButtonText}>{error ? 'Reintentar' : 'Actualizar QR'}</Text>
         </Pressable>
       </View>
     </ScrollView>

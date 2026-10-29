@@ -10,16 +10,16 @@ export default function LinkedScreen() {
   const { apiFetch, user } = useAuth();
   const [profiles, setProfiles] = useState<LinkedProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedProfiles, setHasLoadedProfiles] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadProfiles = useCallback(async () => {
     try {
       setProfiles(await getActiveLinks(apiFetch));
+      setHasLoadedProfiles(true);
     } catch (loadError) {
       console.error('No se pudieron cargar las vinculaciones activas.', loadError);
-      setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar las vinculaciones.');
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +51,6 @@ export default function LinkedScreen() {
 
   async function handleUnlink(profile: LinkedProfile) {
     setUnlinkingId(profile.vinculacion_id);
-    setError(null);
     setNotice(null);
     try {
       await unlinkProfile(apiFetch, profile.vinculacion_id);
@@ -59,7 +58,6 @@ export default function LinkedScreen() {
       setNotice('La vinculación fue eliminada.');
     } catch (unlinkError) {
       console.error('No se pudo eliminar la vinculación.', unlinkError);
-      setError(unlinkError instanceof Error ? unlinkError.message : 'No se pudo desvincular a la persona.');
     } finally {
       setUnlinkingId(null);
     }
@@ -74,11 +72,10 @@ export default function LinkedScreen() {
         </Text>
         <Text style={styles.subtitle}>Personas vinculadas activamente a tu cuenta.</Text>
 
-        {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {notice && <Text style={styles.notice}>{notice}</Text>}
         {isLoading ? (
           <ActivityIndicator color={colors.primary} />
-        ) : profiles.length ? (
+        ) : !hasLoadedProfiles ? null : profiles.length ? (
           profiles.map((profile) => (
             <View key={profile.vinculacion_id} style={styles.profileCard}>
               <View style={styles.avatar}>
@@ -147,7 +144,6 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.earth, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.3 },
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 24 },
   subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14 },
-  error: { color: colors.danger, fontFamily: fonts.body, fontSize: 14 },
   notice: { color: colors.success, fontFamily: fonts.body, fontSize: 14 },
   profileCard: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 14, padding: 16, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, ...cardElevation },
   avatar: { width: 48, height: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 24, backgroundColor: colors.earthLight },

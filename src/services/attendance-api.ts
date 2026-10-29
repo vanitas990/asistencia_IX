@@ -112,16 +112,38 @@ export async function getAttendanceHistory(
   apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
   limit = 50,
   alumnoId?: number,
+  fecha?: string,
+  fetchAll = false,
 ) {
-  const params = new URLSearchParams({ limit: String(limit), offset: '0' });
-  if (alumnoId !== undefined) params.set('alumno_id', String(alumnoId));
-  const response = await apiFetch(`/api/asistencias?${params.toString()}`);
-  return parseApiResponse(response, z.object({
+  const pageSchema = z.object({
     data: z.array(attendanceSchema),
     pagination: z.object({
       limit: z.number().int(),
       offset: z.number().int(),
       hasMore: z.boolean(),
     }),
-  }));
+  });
+  const records: AttendanceRecord[] = [];
+  let offset = 0;
+  let page: z.infer<typeof pageSchema>;
+
+  do {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
+    if (alumnoId !== undefined) params.set('alumno_id', String(alumnoId));
+    if (fecha !== undefined) params.set('fecha', fecha);
+    const response = await apiFetch(`/api/asistencias?${params.toString()}`);
+    page = await parseApiResponse(response, pageSchema);
+    records.push(...page.data);
+    if (!fetchAll || !page.pagination.hasMore) break;
+    offset += limit;
+  } while (true);
+
+  return {
+    data: records,
+    pagination: {
+      ...page.pagination,
+      offset: 0,
+      hasMore: fetchAll ? false : page.pagination.hasMore,
+    },
+  };
 }

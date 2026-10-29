@@ -9,16 +9,16 @@ export default function RequestsScreen() {
   const { apiFetch } = useAuth();
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasLoadedRequests, setHasLoadedRequests] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const loadRequests = useCallback(async () => {
     try {
       setRequests(await getPendingRequests(apiFetch));
+      setHasLoadedRequests(true);
     } catch (loadError) {
       console.error('No se pudieron cargar las solicitudes pendientes.', loadError);
-      setError(loadError instanceof Error ? loadError.message : 'No se pudieron cargar las solicitudes.');
     } finally {
       setIsLoading(false);
     }
@@ -32,7 +32,6 @@ export default function RequestsScreen() {
 
   async function handleAccept(requestId: number) {
     setIsSubmitting(true);
-    setError(null);
     setNotice(null);
     try {
       await acceptLink(apiFetch, requestId);
@@ -40,7 +39,6 @@ export default function RequestsScreen() {
       setNotice('Vinculación aceptada.');
     } catch (acceptError) {
       console.error('No se pudo aceptar la solicitud.', acceptError);
-      setError(acceptError instanceof Error ? acceptError.message : 'No se pudo aceptar la solicitud.');
     } finally {
       setIsSubmitting(false);
     }
@@ -53,11 +51,10 @@ export default function RequestsScreen() {
         <Text style={styles.title}>Solicitudes pendientes</Text>
         <Text style={styles.subtitle}>Revisa las solicitudes de tus supervisores.</Text>
 
-        {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
         {notice && <Text style={styles.notice}>{notice}</Text>}
         {isLoading ? (
           <ActivityIndicator color={colors.primary} />
-        ) : requests.length ? (
+        ) : !hasLoadedRequests ? null : requests.length ? (
           requests.map((request) => (
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.requestDetails}>
@@ -105,7 +102,6 @@ const styles = StyleSheet.create({
   eyebrow: { color: colors.earth, fontFamily: fonts.semibold, fontSize: 11, letterSpacing: 1.3 },
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 24 },
   subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14 },
-  error: { color: colors.danger, fontFamily: fonts.body, fontSize: 14 },
   notice: { color: colors.success, fontFamily: fonts.body, fontSize: 14 },
   requestCard: {
     flexDirection: 'row',

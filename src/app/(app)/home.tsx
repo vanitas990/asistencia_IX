@@ -28,26 +28,18 @@ import {
   unlinkProfile,
 } from '@/services/link-api';
 
-function getMessage(error: unknown) {
-  if (!(error instanceof Error)) return 'No se pudo completar la solicitud. Inténtalo de nuevo.';
-  if (/error interno|internal server error|http 5\d\d/i.test(error.message)) {
-    return 'No se pudo completar la solicitud. Revisa tu conexión a internet e inténtalo de nuevo.';
-  }
-  return error.message;
-}
-
 export default function HomeScreen() {
   const { user, isLoading, apiFetch, updateAvatar } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<number | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
   const [dniAlumno, setDniAlumno] = useState('');
   const [activeLinks, setActiveLinks] = useState<LinkedProfile[]>([]);
   const [pendingRequests, setPendingRequests] = useState<PendingRequest[]>([]);
+  const [hasLoadedHomeData, setHasLoadedHomeData] = useState(false);
   const userRole = user?.rol;
   const { width: windowWidth } = useWindowDimensions();
   const isNarrowScreen = windowWidth < 390;
@@ -67,16 +59,15 @@ export default function HomeScreen() {
       ]);
       setActiveLinks(links);
       setPendingRequests(requests);
+      setHasLoadedHomeData(true);
     } catch (loadError) {
       console.error('No se pudieron cargar las vinculaciones del inicio.', loadError);
-      setError(getMessage(loadError));
     } finally {
       setIsLoadingData(false);
     }
   }, [apiFetch, userRole]);
 
   async function handlePickAvatar() {
-    setError(null);
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
@@ -105,7 +96,6 @@ export default function HomeScreen() {
       setNotice('Foto de perfil actualizada.');
     } catch (pickerError) {
       console.error('No se pudo seleccionar o guardar la foto de perfil.', pickerError);
-      setError(getMessage(pickerError));
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -131,12 +121,11 @@ export default function HomeScreen() {
 
   async function handleAddPractitioner() {
     if (!/^\d{8}$/.test(dniAlumno)) {
-      setError('Ingresa el DNI del alumno (8 dígitos).');
+      Alert.alert('DNI no válido', 'Ingresa un DNI de 8 dígitos.');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
     setNotice(null);
     try {
       await requestLink(apiFetch, dniAlumno);
@@ -145,7 +134,6 @@ export default function HomeScreen() {
       await loadHomeData();
     } catch (requestError) {
       console.error('No se pudo enviar la solicitud de vinculación.', requestError);
-      setError(getMessage(requestError));
     } finally {
       setIsSubmitting(false);
     }
@@ -153,7 +141,6 @@ export default function HomeScreen() {
 
   async function handleAccept(requestId: number) {
     setIsSubmitting(true);
-    setError(null);
     setNotice(null);
     try {
       await acceptLink(apiFetch, requestId);
@@ -161,7 +148,6 @@ export default function HomeScreen() {
       await loadHomeData();
     } catch (acceptError) {
       console.error('No se pudo aceptar la solicitud de vinculación.', acceptError);
-      setError(getMessage(acceptError));
     } finally {
       setIsSubmitting(false);
     }
@@ -184,7 +170,6 @@ export default function HomeScreen() {
 
   async function handleUnlink(profile: LinkedProfile) {
     setUnlinkingId(profile.vinculacion_id);
-    setError(null);
     setNotice(null);
     try {
       await unlinkProfile(apiFetch, profile.vinculacion_id);
@@ -192,7 +177,6 @@ export default function HomeScreen() {
       await loadHomeData();
     } catch (unlinkError) {
       console.error('No se pudo eliminar la vinculación desde el inicio.', unlinkError);
-      setError(getMessage(unlinkError));
     } finally {
       setUnlinkingId(null);
     }
@@ -256,12 +240,10 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {(error || notice) && (
-          <View style={[styles.statusBanner, error ? styles.errorBanner : styles.noticeBanner]}>
-            <Text style={[styles.statusIcon, error && styles.errorStatusText]}>{error ? '!' : '✓'}</Text>
-            <Text accessibilityRole={error ? 'alert' : undefined} style={[styles.statusText, error && styles.errorStatusText]}>
-              {error ?? notice}
-            </Text>
+        {notice && (
+          <View style={[styles.statusBanner, styles.noticeBanner]}>
+            <Text style={styles.statusIcon}>✓</Text>
+            <Text style={styles.statusText}>{notice}</Text>
           </View>
         )}
 
@@ -332,9 +314,9 @@ export default function HomeScreen() {
                   />
                 </View>
               ))
-            ) : (
+            ) : hasLoadedHomeData ? (
               <Text style={styles.helpText}>No tienes solicitudes pendientes.</Text>
-            )}
+            ) : null}
             <ActionButton
               disabled={false}
               label="Ver todas las solicitudes"
@@ -544,10 +526,8 @@ const styles = StyleSheet.create({
   copyFeedback: { color: '#d2e4d5', fontFamily: fonts.medium, fontSize: 11 },
   statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13, borderRadius: 12 },
   noticeBanner: { backgroundColor: colors.successBackground },
-  errorBanner: { backgroundColor: colors.dangerBackground },
   statusIcon: { color: colors.success, fontSize: 15, fontWeight: '900' },
   statusText: { flex: 1, color: colors.success, fontFamily: fonts.medium, fontSize: 13 },
-  errorStatusText: { color: colors.danger },
   actionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16 },
   actionGridNarrow: { flexDirection: 'column' },
   gridCard: { width: '48%', minHeight: 190, justifyContent: 'space-between', borderRadius: 16 },

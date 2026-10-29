@@ -8,10 +8,18 @@ const router = Router();
 const markSchema = z.object({
   qr_token: z.string().min(1).max(256),
 }).strict();
+const calendarDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return date.getUTCFullYear() === year
+    && date.getUTCMonth() === month - 1
+    && date.getUTCDate() === day;
+}, 'La fecha no es válida.');
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(50),
   offset: z.coerce.number().int().min(0).max(100_000).default(0),
   alumno_id: z.coerce.number().int().positive().optional(),
+  fecha: calendarDateSchema.optional(),
 });
 
 router.use(authenticate);
@@ -179,7 +187,8 @@ router.get('/', async (request, response, next) => {
     response.status(400).json({ error: 'Los parámetros de paginación no son válidos.' });
     return;
   }
-  const { limit, offset, alumno_id: alumnoId } = parsed.data;
+  const { limit, offset, alumno_id: alumnoId, fecha } = parsed.data;
+  const shouldFilterByDate = request.auth.role === 'supervisor' || fecha !== undefined;
 
   try {
     if (request.auth.role === 'supervisor' && alumnoId !== undefined) {
@@ -205,6 +214,12 @@ router.get('/', async (request, response, next) => {
     const rows = request.auth.role === 'supervisor'
       ? alumnoId !== undefined
         ? await sql`
+        WITH date_window AS (
+          SELECT COALESCE(
+            ${fecha ?? null}::date,
+            (statement_timestamp() AT TIME ZONE 'America/Lima')::date
+          )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
+        )
         SELECT
           attendance.id,
           attendance.alumno_id,
@@ -219,12 +234,26 @@ router.get('/', async (request, response, next) => {
           AND link.alumno_id = attendance.alumno_id
           AND link.estado = 'activo'
         INNER JOIN perfiles AS profile ON profile.id = attendance.alumno_id
+        CROSS JOIN date_window
         WHERE attendance.supervisor_id = ${request.auth.id}
           AND attendance.alumno_id = ${alumnoId}
+          AND (
+            ${shouldFilterByDate} = false
+            OR (
+              attendance.timestamp >= date_window.starts_at
+              AND attendance.timestamp < date_window.starts_at + interval '1 day'
+            )
+          )
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `
         : await sql`
+        WITH date_window AS (
+          SELECT COALESCE(
+            ${fecha ?? null}::date,
+            (statement_timestamp() AT TIME ZONE 'America/Lima')::date
+          )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
+        )
         SELECT
           attendance.id,
           attendance.alumno_id,
@@ -239,11 +268,25 @@ router.get('/', async (request, response, next) => {
           AND link.alumno_id = attendance.alumno_id
           AND link.estado = 'activo'
         INNER JOIN perfiles AS profile ON profile.id = attendance.alumno_id
+        CROSS JOIN date_window
         WHERE attendance.supervisor_id = ${request.auth.id}
+          AND (
+            ${shouldFilterByDate} = false
+            OR (
+              attendance.timestamp >= date_window.starts_at
+              AND attendance.timestamp < date_window.starts_at + interval '1 day'
+            )
+          )
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `
       : await sql`
+        WITH date_window AS (
+          SELECT COALESCE(
+            ${fecha ?? null}::date,
+            (statement_timestamp() AT TIME ZONE 'America/Lima')::date
+          )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
+        )
         SELECT
           attendance.id,
           attendance.alumno_id,
@@ -253,7 +296,15 @@ router.get('/', async (request, response, next) => {
           profile.nombre AS supervisor_nombre
         FROM asistencias AS attendance
         INNER JOIN perfiles AS profile ON profile.id = attendance.supervisor_id
+        CROSS JOIN date_window
         WHERE attendance.alumno_id = ${request.auth.id}
+          AND (
+            ${shouldFilterByDate} = false
+            OR (
+              attendance.timestamp >= date_window.starts_at
+              AND attendance.timestamp < date_window.starts_at + interval '1 day'
+            )
+          )
         ORDER BY attendance.timestamp DESC, attendance.id DESC
         LIMIT ${limit} OFFSET ${offset}
       `;

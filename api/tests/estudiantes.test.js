@@ -40,8 +40,7 @@ test('returns the configured mock student when the university API URL is absent'
 
   try {
     assert.deepEqual(await lookupUniversityStudent('12345678'), {
-      nombres: 'Nestor',
-      apellidos: 'Armas',
+      nombre: 'Nestor Armas',
       facultad: 'Ingeniería de Sistemas',
       carrera: 'Ingeniería de Software',
     });
@@ -66,8 +65,7 @@ test('maps the university student and resolves the faculty using the API key', a
 
   try {
     assert.deepEqual(await lookupUniversityStudent('76683028'), {
-      nombres: 'ACOSTA JIMENEZ RUSBEL OSCAR',
-      apellidos: '',
+      nombre: 'ACOSTA JIMENEZ RUSBEL OSCAR',
       dni: '76683028',
       carrera: 'Ingeniería Agronómica',
       facultad: 'Facultad de Ciencias Agrarias',

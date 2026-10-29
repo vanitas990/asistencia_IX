@@ -98,9 +98,7 @@ export default function AttendancesScreen() {
         </View>
       )}
       renderItem={({ item }) => {
-        const person = isSupervisor
-          ? `${item.alumno_nombre ?? ''} ${item.alumno_apellido ?? ''}`.trim()
-          : `${item.supervisor_nombre ?? ''} ${item.supervisor_apellido ?? ''}`.trim();
+        const person = isSupervisor ? item.alumno_nombre : item.supervisor_nombre;
         return (
           <View style={styles.recordCard}>
             <View style={styles.recordDetails}>

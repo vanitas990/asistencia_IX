@@ -119,8 +119,7 @@ router.get('/pendientes', requireRole('alumno'), async (request, response, next)
         v.estado,
         v.metodo,
         v.created_at::text AS created_at,
-        p.nombres AS supervisor_nombre,
-        p.apellidos AS supervisor_apellido,
+        p.nombre AS supervisor_nombre,
         p.facultad AS supervisor_facultad
       FROM vinculaciones AS v
       INNER JOIN perfiles AS p ON p.id = v.supervisor_id
@@ -191,8 +190,7 @@ router.get('/activas', async (request, response, next) => {
         SELECT
           v.id AS vinculacion_id,
           p.id,
-          p.nombres AS nombre,
-          p.apellidos AS apellido,
+          p.nombre,
           p.dni,
           p.facultad,
           p.carrera
@@ -200,14 +198,13 @@ router.get('/activas', async (request, response, next) => {
         INNER JOIN perfiles AS p ON p.id = v.alumno_id
         WHERE v.supervisor_id = ${request.auth.id}
           AND v.estado = 'activo'
-        ORDER BY p.apellidos, p.nombres
+        ORDER BY p.nombre
       `
       : await sql`
         SELECT
           v.id AS vinculacion_id,
           p.id,
-          p.nombres AS nombre,
-          p.apellidos AS apellido,
+          p.nombre,
           p.dni,
           p.facultad,
           p.carrera
@@ -215,7 +212,7 @@ router.get('/activas', async (request, response, next) => {
         INNER JOIN perfiles AS p ON p.id = v.supervisor_id
         WHERE v.alumno_id = ${request.auth.id}
           AND v.estado = 'activo'
-        ORDER BY p.apellidos, p.nombres
+        ORDER BY p.nombre
       `;
     response.json({ data: rows });
   } catch (error) {

@@ -20,7 +20,6 @@ import { cardElevation, colors, fonts } from '@/theme';
 export default function EditProfileScreen() {
   const { user, updateProfile } = useAuth();
   const [nombre, setNombre] = useState(user?.nombre ?? '');
-  const [apellido, setApellido] = useState(user?.apellido ?? '');
   const [facultad, setFacultad] = useState(user?.facultad ?? '');
   const [carrera, setCarrera] = useState(user?.carrera ?? '');
   const [isSaving, setIsSaving] = useState(false);
@@ -30,13 +29,10 @@ export default function EditProfileScreen() {
     if (!user) return;
     const fields = {
       nombre: nombre.trim(),
-      apellido: apellido.trim(),
       carrera: carrera.trim(),
       ...(user.rol === 'alumno' ? { facultad: facultad.trim() } : {}),
     };
-    if (Object.entries(fields).some(([field, value]) => (
-      !value && !(field === 'apellido' && user.rol === 'alumno')
-    ))) {
+    if (Object.values(fields).some((value) => !value)) {
       setError('Completa todos los campos antes de guardar.');
       return;
     }
@@ -75,8 +71,12 @@ export default function EditProfileScreen() {
             <Text style={styles.title}>Editar perfil</Text>
             <Text style={styles.subtitle}>Actualiza tus datos personales y académicos.</Text>
 
-            <ProfileInput label="Nombre" value={nombre} onChangeText={setNombre} />
-            <ProfileInput label="Apellido" value={apellido} onChangeText={setApellido} />
+            <ProfileInput
+              label="Nombres y Apellidos"
+              placeholder="Escribe tus nombres y apellidos"
+              value={nombre}
+              onChangeText={setNombre}
+            />
             {user.rol === 'alumno' && (
               <>
                 <ProfileInput label="Facultad" value={facultad} onChangeText={setFacultad} />
@@ -117,10 +117,12 @@ export default function EditProfileScreen() {
 
 function ProfileInput({
   label,
+  placeholder = label,
   value,
   onChangeText,
 }: {
   label: string;
+  placeholder?: string;
   value: string;
   onChangeText: (value: string) => void;
 }) {
@@ -131,10 +133,10 @@ function ProfileInput({
         accessibilityLabel={label}
         onChangeText={onChangeText}
         value={value}
-        placeholder={label}
+        placeholder={placeholder}
         placeholderTextColor="#94a3b8"
         style={styles.input}
-        maxLength={label === 'Nombre' || label === 'Apellido' ? 100 : 150}
+        maxLength={150}
         returnKeyType="next"
       />
     </View>

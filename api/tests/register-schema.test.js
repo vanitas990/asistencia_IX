@@ -5,8 +5,7 @@ import { registerSchema } from '../schemas/auth.js';
 
 const validSupervisor = {
   dni: '12345678',
-  nombre: 'Nestor',
-  apellido: 'Armas',
+  nombre: 'Nestor Armas',
   carrera: 'Sistemas',
   rol: 'supervisor',
   password: 'secure-pass-123',
@@ -16,23 +15,16 @@ test('accepts supervisor registration without faculty', () => {
   assert.equal(registerSchema.safeParse(validSupervisor).success, true);
 });
 
-test('accepts the exact test-api.http supervisor payload using plural name fields', () => {
+test('accepts supervisor registration with a single full-name field', () => {
   const result = registerSchema.safeParse({
     dni: '87654321',
     password: 'MiPasswordSeguro123',
     rol: 'supervisor',
-    nombres: 'Ingeniero',
-    apellidos: 'Prueba',
+    nombre: 'Ingeniero Prueba',
     carrera: 'Especialidad de Prueba',
   });
 
   assert.equal(result.success, true);
-  if (result.success) {
-    assert.equal(result.data.nombre, 'Ingeniero');
-    assert.equal(result.data.apellido, 'Prueba');
-    assert.equal('nombres' in result.data, false);
-    assert.equal('apellidos' in result.data, false);
-  }
 });
 
 test('accepts nullable optional supervisor faculty', () => {
@@ -42,14 +34,12 @@ test('accepts nullable optional supervisor faculty', () => {
   }).success, true);
 });
 
-test('accepts students with a blank surname supplied by the university API', () => {
+test('rejects split name fields from the previous registration contract', () => {
   assert.equal(registerSchema.safeParse({
     ...validSupervisor,
-    nombre: 'Nombre completo del alumno',
-    apellido: '',
-    facultad: 'Facultad de prueba',
-    rol: 'alumno',
-  }).success, true);
+    nombres: 'Nestor',
+    apellidos: 'Armas',
+  }).success, false);
 });
 
 test('rejects supervisor registration without a career or specialization', () => {

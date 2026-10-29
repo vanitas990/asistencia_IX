@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 const mockStudent = {
-  nombres: 'Nestor',
-  apellidos: 'Armas',
+  nombre: 'Nestor Armas',
   facultad: 'Ingeniería de Sistemas',
   carrera: 'Ingeniería de Software',
 };
@@ -183,8 +182,7 @@ export async function lookupUniversityStudent(dni) {
     );
 
     return {
-      nombres: parsedStudent.data.nombres,
-      apellidos: '',
+      nombre: parsedStudent.data.nombres,
       dni: parsedStudent.data.nro_doc,
       carrera: parsedStudent.data.escuela_priorizada,
       facultad: facultyName,

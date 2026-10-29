@@ -211,8 +211,7 @@ router.get('/', async (request, response, next) => {
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
-          profile.nombres AS alumno_nombre,
-          profile.apellidos AS alumno_apellido,
+          profile.nombre AS alumno_nombre,
           profile.dni AS alumno_dni
         FROM asistencias AS attendance
         INNER JOIN vinculaciones AS link
@@ -232,8 +231,7 @@ router.get('/', async (request, response, next) => {
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
-          profile.nombres AS alumno_nombre,
-          profile.apellidos AS alumno_apellido,
+          profile.nombre AS alumno_nombre,
           profile.dni AS alumno_dni
         FROM asistencias AS attendance
         INNER JOIN vinculaciones AS link
@@ -252,8 +250,7 @@ router.get('/', async (request, response, next) => {
           attendance.supervisor_id,
           attendance.tipo,
           attendance.timestamp::text AS timestamp,
-          profile.nombres AS supervisor_nombre,
-          profile.apellidos AS supervisor_apellido
+          profile.nombre AS supervisor_nombre
         FROM asistencias AS attendance
         INNER JOIN perfiles AS profile ON profile.id = attendance.supervisor_id
         WHERE attendance.alumno_id = ${request.auth.id}

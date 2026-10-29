@@ -34,7 +34,7 @@ export default function LinkedScreen() {
   const isSupervisor = user?.rol === 'supervisor';
 
   function confirmUnlink(profile: LinkedProfile) {
-    const name = `${profile.nombre} ${profile.apellido}`;
+    const name = profile.nombre;
     Alert.alert(
       'Desvincular persona',
       `¿Quieres desvincular a ${name}?`,
@@ -85,14 +85,14 @@ export default function LinkedScreen() {
                 <Text style={styles.avatarText}>{profile.nombre.slice(0, 1).toUpperCase()}</Text>
               </View>
               <View style={styles.details}>
-                <Text style={styles.name}>{profile.nombre} {profile.apellido}</Text>
+                <Text style={styles.name}>{profile.nombre}</Text>
                 <Text style={styles.meta}>DNI {profile.dni}</Text>
                 <Text style={styles.meta}>{profile.carrera}</Text>
                 {profile.facultad && <Text style={styles.meta}>{profile.facultad}</Text>}
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={`Desvincular a ${profile.nombre} ${profile.apellido}`}
+                accessibilityLabel={`Desvincular a ${profile.nombre}`}
                 disabled={unlinkingId !== null}
                 onPress={() => confirmUnlink(profile)}
                 style={({ pressed }) => [styles.unlinkButton, pressed && styles.pressed, unlinkingId !== null && styles.disabled]}>
@@ -108,10 +108,10 @@ export default function LinkedScreen() {
               {isSupervisor && (
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Ver asistencias de ${profile.nombre} ${profile.apellido}`}
+                  accessibilityLabel={`Ver asistencias de ${profile.nombre}`}
                   onPress={() => router.push({
                     pathname: '/(app)/asistencias-alumno/[id]',
-                    params: { id: String(profile.id), nombre: `${profile.nombre} ${profile.apellido}` },
+                    params: { id: String(profile.id), nombre: profile.nombre },
                   })}
                   style={({ pressed }) => [styles.attendanceButton, pressed && styles.pressed]}>
                   <Text style={styles.attendanceButtonText}>Ver Asistencias</Text>

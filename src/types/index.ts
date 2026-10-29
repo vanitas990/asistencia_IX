@@ -6,7 +6,6 @@ export interface Perfil {
   dni: string;
   rol: UserRole;
   nombre: string;
-  apellido: string;
   facultad: string | null;
   carrera: string;
   created_at: string;

@@ -15,10 +15,8 @@ const attendanceSchema = z.object({
   tipo: z.enum(['entrada', 'salida']),
   timestamp: z.string(),
   alumno_nombre: z.string().optional(),
-  alumno_apellido: z.string().optional(),
   alumno_dni: z.string().optional(),
   supervisor_nombre: z.string().optional(),
-  supervisor_apellido: z.string().optional(),
 });
 
 const markResponseSchema = z.object({

@@ -2,8 +2,7 @@ import { z } from 'zod';
 
 export const registerSchema = z.object({
   dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener exactamente 8 dígitos.'),
-  nombre: z.string().trim().min(1, 'Ingresa tu nombre.').max(100, 'El nombre es demasiado largo.'),
-  apellido: z.string().trim().max(100, 'El apellido es demasiado largo.'),
+  nombre: z.string().trim().min(1, 'Ingresa tu nombre completo.').max(150, 'El nombre es demasiado largo.'),
   facultad: z.string().trim().max(150, 'El nombre de la facultad es demasiado largo.').nullable().optional(),
   carrera: z
     .string()
@@ -20,8 +19,6 @@ export const registerSchema = z.object({
     if (!data.facultad?.trim()) {
       context.addIssue({ code: 'custom', path: ['facultad'], message: 'Ingresa tu facultad.' });
     }
-  } else if (!data.apellido.trim()) {
-    context.addIssue({ code: 'custom', path: ['apellido'], message: 'Ingresa tu apellido.' });
   }
 });
 
@@ -39,7 +36,6 @@ export const perfilSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
   rol: z.enum(['supervisor', 'alumno']),
   nombre: z.string(),
-  apellido: z.string(),
   facultad: z.string().nullable(),
   carrera: z.string(),
   created_at: z.string(),

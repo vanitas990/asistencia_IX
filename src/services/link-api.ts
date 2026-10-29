@@ -12,7 +12,6 @@ const linkedProfileSchema = z.object({
   vinculacion_id: positiveIntegerSchema,
   id: positiveIntegerSchema,
   nombre: z.string(),
-  apellido: z.string(),
   dni: z.string().regex(/^\d{8}$/),
   facultad: z.string().nullable(),
   carrera: z.string(),
@@ -26,7 +25,6 @@ const pendingRequestSchema = z.object({
   metodo: z.enum(['id', 'qr']),
   created_at: z.string().nullable().optional(),
   supervisor_nombre: z.string(),
-  supervisor_apellido: z.string(),
   supervisor_facultad: z.string().nullable(),
 });
 

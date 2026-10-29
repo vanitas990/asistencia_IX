@@ -10,8 +10,7 @@ const avatarSchema = z.object({
   avatar_url: avatarDataUrlSchema,
 }).strict();
 const editProfileSchema = z.object({
-  nombre: z.string().trim().min(1).max(100),
-  apellido: z.string().trim().max(100),
+  nombre: z.string().trim().min(1).max(150),
   facultad: z.string().trim().min(1).max(150).optional(),
   carrera: z.string().trim().min(1).max(150),
 }).strict();
@@ -26,8 +25,7 @@ router.get('/yo', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombres AS nombre,
-        apellidos AS apellido,
+        nombre,
         facultad,
         carrera,
         created_at::text AS created_at,
@@ -69,8 +67,7 @@ router.patch('/avatar', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombres AS nombre,
-        apellidos AS apellido,
+        nombre,
         facultad,
         carrera,
         created_at::text AS created_at,
@@ -92,17 +89,11 @@ router.put('/editar', async (request, response, next) => {
     response.status(400).json({ error: 'Completa correctamente todos los campos del perfil.' });
     return;
   }
-  if (request.auth.role === 'supervisor' && !parsed.data.apellido) {
-    response.status(400).json({ error: 'Completa correctamente todos los campos del perfil.' });
-    return;
-  }
-
   try {
     const rows = await sql`
       UPDATE perfiles
       SET
-        nombres = ${parsed.data.nombre},
-        apellidos = ${parsed.data.apellido},
+        nombre = ${parsed.data.nombre},
         facultad = ${parsed.data.facultad ?? null},
         carrera = ${parsed.data.carrera}
       WHERE id = ${request.auth.id}
@@ -111,8 +102,7 @@ router.put('/editar', async (request, response, next) => {
         auth_user_id::text AS auth_user_id,
         dni,
         rol,
-        nombres AS nombre,
-        apellidos AS apellido,
+        nombre,
         facultad,
         carrera,
         created_at::text AS created_at,

@@ -23,7 +23,6 @@ import { cardElevation, colors, fonts } from '@/theme';
 const emptyForm: RegisterFormData = {
   dni: '',
   nombre: '',
-  apellido: '',
   facultad: '',
   carrera: '',
   password: '',
@@ -57,7 +56,7 @@ export default function RegisterScreen() {
         ...current,
         dni: value,
         ...(current.rol === 'alumno'
-          ? { nombre: '', apellido: '', facultad: '', carrera: '' }
+          ? { nombre: '', facultad: '', carrera: '' }
           : {}),
       }));
       setFormError(null);
@@ -89,8 +88,7 @@ export default function RegisterScreen() {
       setForm((current) => current.dni === dni
         ? {
           ...current,
-          nombre: student.nombres,
-          apellido: student.apellidos,
+          nombre: student.nombre,
           facultad: student.facultad,
           carrera: student.carrera,
         }
@@ -137,7 +135,6 @@ export default function RegisterScreen() {
           ...supervisorData,
           dni: `******${supervisorData.dni.slice(-2)}`,
           nombre: '[REDACTED]',
-          apellido: '[REDACTED]',
           carrera: supervisorData.carrera ? '[PRESENTE]' : '[VACÍO]',
           password: '[REDACTED]',
         }));
@@ -242,8 +239,7 @@ export default function RegisterScreen() {
               )}
             </Pressable>
           )}
-          {renderInput('nombre', 'Nombres', 'Tus nombres', false, form.rol === 'supervisor')}
-          {renderInput('apellido', 'Apellidos', 'Tus apellidos', false, form.rol === 'supervisor')}
+          {renderInput('nombre', 'Nombres y Apellidos', 'Escribe tus nombres y apellidos', false, form.rol === 'supervisor')}
           {form.rol === 'alumno' ? (
             <>
               {renderInput('facultad', 'Facultad', 'Nombre de la facultad', false, false)}
@@ -272,7 +268,6 @@ export default function RegisterScreen() {
                       ...current,
                       rol: role,
                       nombre: role === 'alumno' ? '' : current.nombre,
-                      apellido: role === 'alumno' ? '' : current.apellido,
                       facultad: '',
                       carrera: role === 'alumno' ? '' : current.carrera,
                     }));

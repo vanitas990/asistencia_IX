@@ -75,12 +75,12 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
         <View style={styles.profileHeader}>
           <ProfileAvatar
             avatarUrl={user?.avatar_url ?? null}
-            name={user ? `${user.nombre} ${user.apellido}` : 'Usuario'}
+            name={user?.nombre ?? 'Usuario'}
             size={64}
             style={styles.avatar}
           />
           <Text numberOfLines={1} style={styles.userName}>
-            {user ? `${user.nombre} ${user.apellido}` : 'Mi perfil'}
+            {user?.nombre ?? 'Mi perfil'}
           </Text>
           <Text style={styles.userRole}>
             {isSupervisor ? 'Supervisor' : 'Alumno'}

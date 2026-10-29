@@ -166,7 +166,7 @@ export default function HomeScreen() {
   function confirmUnlink(profile: LinkedProfile) {
     Alert.alert(
       'Desvincular persona',
-      `¿Quieres desvincular a ${profile.nombre} ${profile.apellido}?`,
+      `¿Quieres desvincular a ${profile.nombre}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -225,7 +225,7 @@ export default function HomeScreen() {
             style={({ pressed }) => [styles.avatarPressable, pressed && styles.pressed]}>
             <ProfileAvatar
               avatarUrl={user.avatar_url}
-              name={`${user.nombre} ${user.apellido}`}
+              name={user.nombre}
               size={64}
               style={styles.welcomeAvatar}
             />
@@ -236,7 +236,7 @@ export default function HomeScreen() {
             </View>
           </Pressable>
           <View style={styles.welcomeCopy}>
-            <Text style={styles.welcomeName} numberOfLines={1}>{user.nombre} {user.apellido}</Text>
+            <Text style={styles.welcomeName} numberOfLines={1}>{user.nombre}</Text>
             <Text style={styles.welcomeRole}>{isSupervisor ? 'Supervisor' : 'Alumno'}</Text>
             <Pressable
               accessibilityRole="button"
@@ -339,7 +339,7 @@ export default function HomeScreen() {
                 <View key={request.id} style={styles.listItem}>
                   <View style={styles.listText}>
                     <Text style={styles.listTitle}>
-                      {request.supervisor_nombre} {request.supervisor_apellido}
+                      {request.supervisor_nombre}
                     </Text>
                     <Text style={styles.listSubtitle}>{request.supervisor_facultad}</Text>
                   </View>
@@ -432,14 +432,14 @@ export default function HomeScreen() {
                   <Text style={styles.personInitial}>{profile.nombre.slice(0, 1).toUpperCase()}</Text>
                 </View>
                 <View style={styles.listText}>
-                  <Text style={styles.listTitle}>{profile.nombre} {profile.apellido}</Text>
+                  <Text style={styles.listTitle}>{profile.nombre}</Text>
                   <Text style={styles.listSubtitle}>
                     {profile.dni}{profile.facultad ? ` · ${profile.facultad}` : ''}
                   </Text>
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Desvincular a ${profile.nombre} ${profile.apellido}`}
+                  accessibilityLabel={`Desvincular a ${profile.nombre}`}
                   disabled={unlinkingId !== null}
                   onPress={() => confirmUnlink(profile)}
                   style={({ pressed }) => [styles.unlinkButton, pressed && styles.pressed, unlinkingId !== null && styles.disabled]}>

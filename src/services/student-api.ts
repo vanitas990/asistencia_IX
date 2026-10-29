@@ -1,8 +1,7 @@
 import { z } from 'zod';
 
 const studentSchema = z.object({
-  nombres: z.string().trim().min(1),
-  apellidos: z.string(),
+  nombre: z.string().trim().min(1),
   facultad: z.string().trim().min(1),
   carrera: z.string().trim().min(1),
 });

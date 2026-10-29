@@ -62,7 +62,7 @@ export default function RequestsScreen() {
             <View key={request.id} style={styles.requestCard}>
               <View style={styles.requestDetails}>
                 <Text style={styles.requestName}>
-                  {request.supervisor_nombre} {request.supervisor_apellido}
+                  {request.supervisor_nombre}
                 </Text>
                 <Text style={styles.requestMeta}>{request.supervisor_facultad}</Text>
                 {request.created_at && (

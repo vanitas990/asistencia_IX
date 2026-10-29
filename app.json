@@ -50,11 +50,10 @@
       [
         "expo-media-library",
         {
-          "photosPermission": false,
-          "savePhotosPermission": "Permite que Asistencia IX guarde tu código QR en la galería.",
-          "granularPermissions": [
-            "photo"
-          ]
+          "photosPermission": "Permitir a $(PRODUCT_NAME) acceder a tus fotos.",
+          "savePhotosPermission": "Permitir a $(PRODUCT_NAME) guardar fotos.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": ["photo"]
         }
       ],
       "expo-font"

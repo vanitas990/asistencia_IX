@@ -1,5 +1,5 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useIsFocused, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,15 +16,51 @@ import { linkByQr, markAttendance } from '@/services/attendance-api';
 
 type ScanMode = 'attendance' | 'link';
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function getQrToken(data: string) {
+  const trimmedData = data.trim();
+  if (!trimmedData.startsWith('{') && !trimmedData.startsWith('[')) {
+    return trimmedData;
+  }
+
+  let parsedData: unknown;
+  try {
+    parsedData = JSON.parse(trimmedData);
+  } catch {
+    throw new Error('El código QR contiene datos JSON inválidos.');
+  }
+
+  if (!isRecord(parsedData)) {
+    throw new Error('El código QR no contiene un token válido.');
+  }
+
+  const nestedData = isRecord(parsedData.data)
+    ? parsedData.data
+    : null;
+  const token = parsedData.token
+    ?? parsedData.qr_token
+    ?? nestedData?.token
+    ?? nestedData?.qr_token;
+  if (typeof token !== 'string' || !token.trim()) {
+    throw new Error('El código QR no incluye un token válido.');
+  }
+  return token.trim();
+}
+
 export default function ScanScreen() {
   const { mode: rawMode } = useLocalSearchParams<{ mode?: string }>();
   const mode: ScanMode = rawMode === 'link' ? 'link' : 'attendance';
   const { apiFetch } = useAuth();
+  const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const scanLocked = useRef(false);
   const isMounted = useRef(true);
+  const hasRequestedPermission = useRef(false);
 
   useEffect(() => {
     isMounted.current = true;
@@ -33,20 +69,33 @@ export default function ScanScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!permission || permission.granted || !permission.canAskAgain || hasRequestedPermission.current) return;
+    hasRequestedPermission.current = true;
+    void requestPermission().catch((permissionError) => {
+      console.error('No se pudo solicitar permiso para usar la cámara.', permissionError);
+    });
+  }, [permission, requestPermission]);
+
   async function handleBarcodeScanned(result: BarcodeScanningResult) {
+    console.log('QR escaneado:', {
+      type: result?.type,
+      dataLength: typeof result?.data === 'string' ? result.data.length : 0,
+    });
     if (scanLocked.current || !result || result.type !== 'qr') return;
     scanLocked.current = true;
     setIsProcessing(true);
     setScanError(null);
 
     try {
-      const qrData = typeof result.data === 'string' ? result.data.trim() : '';
-      if (!qrData) {
+      const qrData = typeof result.data === 'string' ? result.data : '';
+      if (!qrData.trim()) {
         throw new Error('El código QR no contiene datos.');
       }
+      const qrToken = getQrToken(qrData);
 
       if (mode === 'attendance') {
-        const attendance = await markAttendance(apiFetch, qrData);
+        const attendance = await markAttendance(apiFetch, qrToken);
         if (!isMounted.current) return;
         Alert.alert(
           'Asistencia registrada',
@@ -54,7 +103,7 @@ export default function ScanScreen() {
           [{ text: 'Aceptar', onPress: () => router.back() }],
         );
       } else {
-        await linkByQr(apiFetch, qrData);
+        await linkByQr(apiFetch, qrToken);
         if (!isMounted.current) return;
         Alert.alert(
           'Vinculación completada',
@@ -123,6 +172,7 @@ export default function ScanScreen() {
     <View style={styles.container}>
       <CameraView
         style={StyleSheet.absoluteFill}
+        active={isFocused}
         facing="back"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={isProcessing ? undefined : (result) => void handleBarcodeScanned(result)}

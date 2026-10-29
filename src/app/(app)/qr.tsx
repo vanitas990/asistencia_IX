@@ -1,17 +1,13 @@
-import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library/legacy';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import ViewShot, { captureRef, type ViewShotRef } from 'react-native-view-shot';
 
 import { useAuth } from '@/context/AuthContext';
 import { generateQr, getAlumnoQr, regenerateQr } from '@/services/link-api';
 import { cardElevation, colors, fonts } from '@/theme';
-
-type QrSvgRef = {
-  toDataURL: (callback: (base64: string) => void) => void;
-};
 
 export default function QrScreen() {
   const { apiFetch, user } = useAuth();
@@ -22,7 +18,7 @@ export default function QrScreen() {
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(false);
-  const qrRef = useRef<QrSvgRef | null>(null);
+  const qrCardRef = useRef<ViewShotRef | null>(null);
 
   const loadQr = useCallback(async (isActive: () => boolean = () => isMountedRef.current) => {
     if (isActive()) setError(null);
@@ -56,75 +52,59 @@ export default function QrScreen() {
     };
   }, [loadQr]);
 
-  async function getQrBase64() {
-    const qr = qrRef.current;
-    if (!token || !qr) {
-      throw new Error('El código QR todavía no está listo para exportar.');
+  async function captureQrCard() {
+    if (!token || !qrCardRef.current) {
+      throw new Error('La tarjeta con el código QR todavía no está lista.');
     }
 
-    return new Promise<string>((resolve, reject) => {
-      try {
-        qr.toDataURL((base64) => {
-          if (!base64) {
-            reject(new Error('No se pudo generar la imagen del código QR.'));
-            return;
-          }
-          resolve(base64);
-        });
-      } catch (qrError) {
-        reject(qrError);
-      }
+    return captureRef(qrCardRef, {
+      format: 'png',
+      quality: 1,
+      result: 'tmpfile',
     });
   }
 
-  async function writeQrImage() {
+  async function handleExportAndShare() {
     if (Platform.OS === 'web') {
-      throw new Error('Guardar o compartir una imagen QR desde el almacenamiento local no está disponible en web.');
+      console.error('La exportación de imágenes QR está disponible en builds nativas.');
+      return;
     }
-    if (!FileSystem.cacheDirectory) {
-      throw new Error('No se encontró el directorio temporal para guardar el código QR.');
-    }
-
-    const base64 = await getQrBase64();
-    const fileUri = `${FileSystem.cacheDirectory}qr_alumno.png`;
-    await FileSystem.writeAsStringAsync(fileUri, base64, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    return fileUri;
-  }
-
-  async function handleSaveToGallery() {
-    setIsExporting(true);
-    try {
-      const permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
-      if (!permission.granted) {
-        console.error('No se concedió permiso para guardar el código QR en la galería.');
-        return;
-      }
-
-      const fileUri = await writeQrImage();
-      await MediaLibrary.saveToLibraryAsync(fileUri);
-      Alert.alert('QR guardado', 'El código QR se guardó en tu galería.');
-    } catch (saveError) {
-      console.error('No se pudo guardar el código QR en la galería.', saveError);
-    } finally {
-      setIsExporting(false);
-    }
-  }
-
-  async function handleShare() {
     setIsExporting(true);
     try {
       if (!(await Sharing.isAvailableAsync())) {
         throw new Error('La función para compartir archivos no está disponible en este dispositivo.');
       }
-      const fileUri = await writeQrImage();
+      const fileUri = await captureQrCard();
       await Sharing.shareAsync(fileUri, {
         mimeType: 'image/png',
-        dialogTitle: 'Compartir mi QR',
+        dialogTitle: 'Compartir tarjeta QR',
       });
     } catch (shareError) {
-      console.error('No se pudo compartir el código QR.', shareError);
+      console.error('No se pudo capturar o compartir la tarjeta QR.', shareError);
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  async function handleSaveToGallery() {
+    if (Platform.OS === 'web') {
+      console.error('Guardar imágenes QR en la galería está disponible en builds nativas.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
+      if (!permission.granted) {
+        Alert.alert('Permiso denegado', 'Permite el acceso a fotos para guardar el QR en tu galería.');
+        return;
+      }
+
+      const fileUri = await captureQrCard();
+      await MediaLibrary.saveToLibraryAsync(fileUri);
+      Alert.alert('¡Éxito!', 'El QR se guardó en tu galería.');
+    } catch (saveError) {
+      console.error('No se pudo capturar o guardar la tarjeta QR en la galería.', saveError);
     } finally {
       setIsExporting(false);
     }
@@ -175,17 +155,7 @@ export default function QrScreen() {
         ) : token ? (
           <>
             <View style={styles.qrFrame}>
-              <QRCode
-                getRef={(instance) => {
-                  qrRef.current = instance && typeof instance.toDataURL === 'function'
-                    ? instance
-                    : null;
-                }}
-                value={token}
-                size={240}
-                color={colors.primary}
-                backgroundColor={colors.surface}
-              />
+              <QRCode value={token} size={240} color="#000000" backgroundColor="#FFFFFF" />
             </View>
             <Text selectable style={styles.token}>{token}</Text>
             <Pressable
@@ -198,12 +168,26 @@ export default function QrScreen() {
             <Pressable
               accessibilityRole="button"
               disabled={isExporting || isRegenerating}
-              onPress={() => void handleShare()}
+              onPress={() => void handleExportAndShare()}
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, (isExporting || isRegenerating) && styles.disabled]}>
-              <Text style={styles.secondaryButtonText}>Compartir</Text>
+              {isExporting ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.secondaryButtonText}>Compartir</Text>}
             </Pressable>
           </>
         ) : null}
+
+        {token && (
+          <ViewShot
+            ref={qrCardRef}
+            style={styles.capturePosition}>
+            <View style={styles.printCard}>
+              <Text style={styles.printTitle}>MARCA TU ASISTENCIA</Text>
+              <View style={styles.printQrFrame}>
+                <QRCode value={token} size={250} color="#000000" backgroundColor="#FFFFFF" />
+              </View>
+              <Text style={styles.printFooter}>ASISTENCIA IX</Text>
+            </View>
+          </ViewShot>
+        )}
 
         {userRole === 'supervisor' && token && (
           <Pressable
@@ -259,6 +243,20 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
   qrFrame: { padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   token: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 11, textAlign: 'center' },
+  capturePosition: { position: 'absolute', left: -10000, top: 0 },
+  printCard: {
+    width: 330,
+    minHeight: 390,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 20,
+    padding: 28,
+    borderRadius: 24,
+    backgroundColor: '#F1F5F9',
+  },
+  printTitle: { color: colors.primary, fontFamily: fonts.display, fontSize: 23, textAlign: 'center' },
+  printQrFrame: { padding: 20, borderRadius: 18, backgroundColor: '#FFFFFF' },
+  printFooter: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 2 },
   button: { minHeight: 50, width: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.primary, ...cardElevation },
   buttonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 15 },
   secondaryButton: { minHeight: 48, width: '100%', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface },

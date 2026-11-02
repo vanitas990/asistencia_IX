@@ -32,7 +32,8 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Permite que Asistencia IX use la cámara para escanear códigos QR.",
+          "cameraPermission": "Permitir a $(PRODUCT_NAME) acceder a tu cámara para escanear códigos QR.",
+          "microphonePermission": false,
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": true
         }

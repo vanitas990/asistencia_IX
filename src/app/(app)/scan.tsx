@@ -94,6 +94,7 @@ export default function ScanScreen() {
       }
       const qrToken = getQrToken(qrData);
 
+      Alert.alert('QR leído', JSON.stringify({ type: result.type, data: qrData }));
       if (mode === 'attendance') {
         const attendance = await markAttendance(apiFetch, qrToken);
         if (!isMounted.current) return;
@@ -157,9 +158,13 @@ export default function ScanScreen() {
         <Text style={styles.message}>Permite el acceso para escanear el código QR.</Text>
         <Pressable
           accessibilityRole="button"
-          onPress={() => void requestPermission()}
+          onPress={() => {
+            void requestPermission().catch((permissionError) => {
+              console.error('No se pudo solicitar permiso para usar la cámara.', permissionError);
+            });
+          }}
           style={styles.primaryButton}>
-          <Text style={styles.primaryButtonText}>Permitir cámara</Text>
+          <Text style={styles.primaryButtonText}>Solicitar permiso de cámara</Text>
         </Pressable>
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.cancelButton}>
           <Text style={styles.cancelButtonText}>Volver</Text>

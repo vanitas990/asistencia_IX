@@ -6,15 +6,14 @@
     "production": {
       "distribution": "store",
       "autoIncrement": true,
+      "environment": "production",
       "android": {
         "buildType": "app-bundle"
       }
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://asistencia-ix-api.onrender.com"
-      },
+      "environment": "preview",
       "android": {
         "buildType": "apk"
       }

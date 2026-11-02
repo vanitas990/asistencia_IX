@@ -1,67 +1,109 @@
 # ASISTENCIA IX
 
-Aplicación móvil para el registro y consulta de asistencia mediante códigos QR, desarrollada para la Universidad Nacional Hermilio Valdizán (UNHEVAL).
+Aplicación móvil de la Universidad Nacional Hermilio Valdizán (UNHEVAL) para registrar y consultar asistencias mediante códigos QR. La API valida las operaciones de la aplicación y se integra con los servicios universitarios de consulta por DNI.
 
-## Tecnologías
+## Stack
 
-- **Frontend:** React Native, Expo y Expo Router.
-- **Backend:** Node.js y Express.
+- **Aplicación móvil:** React Native, Expo SDK 58 y Expo Router.
+- **API:** Node.js 20 o superior y Express.
 - **Base de datos:** PostgreSQL en Neon.
-- **Compilación móvil:** EAS Build.
+- **Compilaciones móviles:** EAS Build.
 
-## Preparación del entorno
+La aplicación móvil se comunica con la API; no se conecta directamente a Neon.
 
-En la raíz del repositorio, instala las dependencias del frontend:
+## Requisitos
+
+- Node.js 20 o superior y npm.
+- Una base de datos Neon con el esquema del proyecto aplicado.
+- Una cuenta de Expo con acceso al proyecto EAS para compilar.
+
+## Configuración del entorno
+
+Desde la raíz del repositorio, crea el archivo local de variables a partir de la plantilla:
 
 ```bash
-npm install
+cp .env.example .env
 ```
 
-Copia `.env.example` a `.env` y completa los valores necesarios. No publiques `.env` ni incluyas secretos en el repositorio. La plantilla contiene variables para el backend y para la compilación del frontend.
+Completa `.env` con los valores del entorno:
 
-## Backend
+| Variable | Uso |
+| --- | --- |
+| `DATABASE_URL` | Cadena de conexión de Neon con SSL habilitado. |
+| `JWT_SECRET` | Secreto privado de al menos 32 caracteres para firmar tokens. |
+| `UNHEVAL_API_URL` | URL base del servicio universitario de consulta. |
+| `UNHEVAL_API_KEY` | Credencial del servicio universitario, si este la requiere. |
+| `EXPO_PUBLIC_API_URL` | URL HTTPS pública de la API; se incorpora en la compilación móvil. |
 
-El backend está en `api/`. Requiere Node.js 20 o superior. Instala sus dependencias y configura las variables del archivo `.env` en la raíz del repositorio:
+No agregues secretos a Git ni a variables `EXPO_PUBLIC_*`. La URL pública de la API no es un secreto. En producción, configura las variables sensibles en el servidor; para compilaciones EAS en la nube, define `EXPO_PUBLIC_API_URL` en **EAS > Project settings > Environment variables**, en el entorno que corresponda (`preview` o `production`).
+
+## Backend en un VPS
+
+1. Instala Node.js 20 o superior y PM2 en el VPS:
+
+   ```bash
+   npm install --global pm2
+   ```
+
+2. Clona el repositorio y configura las variables del backend en `.env` en la raíz del proyecto. El proceso `api/start.js` carga ese archivo y valida `DATABASE_URL` y `JWT_SECRET` antes de iniciar.
+3. Instala las dependencias y arranca la API con PM2 desde la raíz:
 
 ```bash
-cd api
-npm install
-npm start
+npm ci --prefix api
+pm2 start api/start.js --name asistencia-ix-api
+pm2 startup
 ```
 
-El comando de desarrollo es `npm run dev`. El servidor escucha en `process.env.PORT` y usa el puerto `3000` como valor local predeterminado. El endpoint de comprobación es `/health`.
-
-Para producción, el proceso puede mantenerse activo con PM2:
+Ejecuta el comando que imprime `pm2 startup` y luego guarda la lista de procesos para habilitar el inicio automático después de reiniciar el VPS:
 
 ```bash
-cd api
-pm2 start start.js --name asistencia-ix-api
 pm2 save
 ```
 
-En el servidor, configura como mínimo `DATABASE_URL` y `JWT_SECRET` (de al menos 32 caracteres). `UNHEVAL_API_URL` y `UNHEVAL_API_KEY` habilitan la consulta al servicio universitario. CORS permite solicitudes desde cualquier origen; la API utiliza autenticación por token para sus rutas protegidas.
+Para desplegar una actualización:
 
-## Frontend y publicación en Android
+```bash
+git pull
+npm ci --prefix api
+pm2 restart asistencia-ix-api --update-env
+```
 
-`EXPO_PUBLIC_API_URL` indica la URL base del backend. Expo la incorpora al bundle en el momento de compilar; cualquier cambio de URL requiere una nueva compilación. Antes de compilar, define esa variable en `.env` o en las variables de entorno de EAS.
+El servidor escucha en `process.env.PORT` y usa el puerto `3000` como valor local predeterminado. En el VPS, permite que el proxy inverso (por ejemplo, Nginx) gestione HTTPS y reenvíe las solicitudes al puerto asignado a la API. Comprueba el servicio en `https://<subdominio>/health`.
 
-Para generar el Android App Bundle (`.aab`) para Google Play:
+No expongas `DATABASE_URL`, `JWT_SECRET` ni `UNHEVAL_API_KEY` al cliente móvil. Si usas un archivo `.env` en producción, mantenlo fuera del control de versiones y limita sus permisos.
+
+## Compilación Android con EAS
+
+Inicia sesión con la cuenta de Expo que tiene acceso al proyecto:
+
+```bash
+npx eas-cli@latest login
+```
+
+Para generar un **APK de prueba** para instalación directa, configura primero `EXPO_PUBLIC_API_URL` en el entorno `preview` de EAS y ejecuta:
+
+```bash
+npx eas-cli@latest build --platform android --profile preview
+```
+
+Para generar el **Android App Bundle (`.aab`)** que se entrega a Google Play, configura la URL en el entorno `production` de EAS y ejecuta:
 
 ```bash
 npx eas-cli@latest build --platform android --profile production
 ```
 
-También se puede usar `eas build --platform android --profile production` si EAS CLI está instalado. Inicia sesión en Expo/EAS y configura las credenciales de Android cuando el asistente de compilación lo solicite.
+El perfil `production` incrementa automáticamente el código de versión Android. EAS puede solicitar configurar las credenciales de firma la primera vez.
 
-## Entrega al equipo de iHUB
+## Entrega al ingeniero de iHUB
 
-- Configurar el backend para escuchar en `process.env.PORT`; el código usa `3000` como respaldo local.
-- Proporcionar el subdominio HTTPS definitivo del backend (por ejemplo, `https://api-asistencia.unheval.edu.pe`).
-- Con esa URL, actualizar `EXPO_PUBLIC_API_URL` en el entorno de compilación de EAS y generar un nuevo bundle.
-- Proporcionar también la URL final del servicio de consulta universitaria para `UNHEVAL_API_URL` y su clave `UNHEVAL_API_KEY`, si corresponde.
-- La política estática para publicación en Google Play se encuentra en [`privacidad.html`](./privacidad.html).
+1. Proveer el subdominio HTTPS definitivo de la API.
+2. Configurar ese valor como `EXPO_PUBLIC_API_URL` en los entornos `preview` y `production` de EAS.
+3. Generar un APK nuevo con el perfil `preview` para pruebas en dispositivos. Cuando se apruebe, generar el `.aab` con el perfil `production` para Google Play.
+4. Confirmar que la API responda correctamente en `/health` y que las variables del backend estén configuradas en el VPS.
 
-## Comprobaciones de desarrollo
+La política de privacidad publicada está disponible en [vanitas990.github.io/asistencia_IX](https://vanitas990.github.io/asistencia_IX/).
+
+## Comprobaciones locales
 
 ```bash
 npm run lint

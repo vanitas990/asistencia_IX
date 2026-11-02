@@ -56,6 +56,7 @@ export default function ScanScreen() {
   const { apiFetch } = useAuth();
   const isFocused = useIsFocused();
   const [permission, requestPermission] = useCameraPermissions();
+  const [scanned, setScanned] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
   const scanLocked = useRef(false);
@@ -78,12 +79,9 @@ export default function ScanScreen() {
   }, [permission, requestPermission]);
 
   async function handleBarcodeScanned(result: BarcodeScanningResult) {
-    console.log('QR escaneado:', {
-      type: result?.type,
-      dataLength: typeof result?.data === 'string' ? result.data.length : 0,
-    });
     if (scanLocked.current || !result || result.type !== 'qr') return;
     scanLocked.current = true;
+    setScanned(true);
     setIsProcessing(true);
     setScanError(null);
 
@@ -94,7 +92,6 @@ export default function ScanScreen() {
       }
       const qrToken = getQrToken(qrData);
 
-      Alert.alert('QR leído', JSON.stringify({ type: result.type, data: qrData }));
       if (mode === 'attendance') {
         const attendance = await markAttendance(apiFetch, qrToken);
         if (!isMounted.current) return;
@@ -179,8 +176,9 @@ export default function ScanScreen() {
         style={StyleSheet.absoluteFill}
         active={isFocused}
         facing="back"
+        autofocus="on"
         barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-        onBarcodeScanned={isProcessing ? undefined : (result) => void handleBarcodeScanned(result)}
+        onBarcodeScanned={scanned ? undefined : handleBarcodeScanned}
       />
       <View style={styles.overlay}>
         <Pressable accessibilityRole="button" onPress={() => router.back()} style={styles.backButton}>
@@ -205,6 +203,7 @@ export default function ScanScreen() {
               accessibilityRole="button"
               onPress={() => {
                 setScanError(null);
+                setScanned(false);
                 scanLocked.current = false;
               }}
               style={styles.retryButton}>

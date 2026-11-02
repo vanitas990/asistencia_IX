@@ -1,56 +1,70 @@
-# Welcome to your Expo app 👋
+# ASISTENCIA IX
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicación móvil para el registro y consulta de asistencia mediante códigos QR, desarrollada para la Universidad Nacional Hermilio Valdizán (UNHEVAL).
 
-## Get started
+## Tecnologías
 
-1. Install dependencies
+- **Frontend:** React Native, Expo y Expo Router.
+- **Backend:** Node.js y Express.
+- **Base de datos:** PostgreSQL en Neon.
+- **Compilación móvil:** EAS Build.
 
-   ```bash
-   npm install
-   ```
+## Preparación del entorno
 
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+En la raíz del repositorio, instala las dependencias del frontend:
 
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Copia `.env.example` a `.env` y completa los valores necesarios. No publiques `.env` ni incluyas secretos en el repositorio. La plantilla contiene variables para el backend y para la compilación del frontend.
 
-### Other setup steps
+## Backend
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+El backend está en `api/`. Requiere Node.js 20 o superior. Instala sus dependencias y configura las variables del archivo `.env` en la raíz del repositorio:
 
-## Learn more
+```bash
+cd api
+npm install
+npm start
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+El comando de desarrollo es `npm run dev`. El servidor escucha en `process.env.PORT` y usa el puerto `3000` como valor local predeterminado. El endpoint de comprobación es `/health`.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Para producción, el proceso puede mantenerse activo con PM2:
 
-## Join the community
+```bash
+cd api
+pm2 start start.js --name asistencia-ix-api
+pm2 save
+```
 
-Join our community of developers creating universal apps.
+En el servidor, configura como mínimo `DATABASE_URL` y `JWT_SECRET` (de al menos 32 caracteres). `UNHEVAL_API_URL` y `UNHEVAL_API_KEY` habilitan la consulta al servicio universitario. CORS permite solicitudes desde cualquier origen; la API utiliza autenticación por token para sus rutas protegidas.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## Frontend y publicación en Android
+
+`EXPO_PUBLIC_API_URL` indica la URL base del backend. Expo la incorpora al bundle en el momento de compilar; cualquier cambio de URL requiere una nueva compilación. Antes de compilar, define esa variable en `.env` o en las variables de entorno de EAS.
+
+Para generar el Android App Bundle (`.aab`) para Google Play:
+
+```bash
+npx eas-cli@latest build --platform android --profile production
+```
+
+También se puede usar `eas build --platform android --profile production` si EAS CLI está instalado. Inicia sesión en Expo/EAS y configura las credenciales de Android cuando el asistente de compilación lo solicite.
+
+## Entrega al equipo de iHUB
+
+- Configurar el backend para escuchar en `process.env.PORT`; el código usa `3000` como respaldo local.
+- Proporcionar el subdominio HTTPS definitivo del backend (por ejemplo, `https://api-asistencia.unheval.edu.pe`).
+- Con esa URL, actualizar `EXPO_PUBLIC_API_URL` en el entorno de compilación de EAS y generar un nuevo bundle.
+- Proporcionar también la URL final del servicio de consulta universitaria para `UNHEVAL_API_URL` y su clave `UNHEVAL_API_KEY`, si corresponde.
+- La política estática para publicación en Google Play se encuentra en [`privacidad.html`](./privacidad.html).
+
+## Comprobaciones de desarrollo
+
+```bash
+npm run lint
+npx tsc --noEmit
+npm --prefix api test
+```

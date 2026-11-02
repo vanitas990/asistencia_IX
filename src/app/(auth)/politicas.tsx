@@ -6,47 +6,80 @@ import { cardElevation, colors, fonts } from '@/theme';
 
 const sections = [
   {
-    title: '1. Identidad del Responsable',
+    title: '1. Información general',
     paragraphs: [
-      'El responsable del tratamiento de sus datos es la institución educativa correspondiente y el equipo desarrollador de Asistencia IX. Puede contactarnos en: armasnestor58@gmail.com.',
+      'La presente Política de Privacidad establece las condiciones bajo las cuales la aplicación móvil ASISTENCIA IX, desarrollada para la Universidad Nacional Hermilio Valdizán (UNHEVAL), recopila, utiliza, almacena y protege los datos personales de sus usuarios.',
+      'La aplicación tiene como finalidad facilitar y gestionar el control de asistencia académica de los estudiantes, garantizando el tratamiento responsable y confidencial de su información personal.',
+      'El tratamiento de los datos se realiza conforme a la Ley N.º 29733, Ley de Protección de Datos Personales, y su reglamento vigente en el Perú.',
     ],
   },
   {
-    title: '2. Datos que recopilamos',
+    title: '2. Datos personales recopilados',
     paragraphs: [
-      'Para el funcionamiento de la aplicación, recopilamos los siguientes datos:',
-      '• Nombre completo.\n• DNI de 8 dígitos.\n• Facultad y carrera.\n• Historial de asistencias (fecha, hora y tipo de marcación: entrada o salida).\n• Fotografía de perfil (opcional, si el usuario decide subirla).',
+      'Para el funcionamiento de la aplicación, se recopilan los siguientes datos personales:',
+      '• DNI: número del Documento Nacional de Identidad del estudiante.\n• Nombre completo: identificación del estudiante.\n• Carrera profesional: programa académico al que pertenece.\n• Facultad: unidad académica correspondiente.\n• Registro de asistencias: fechas y horas en las que se registra la asistencia del estudiante.',
+      'La aplicación recopila únicamente la información necesaria para cumplir con su finalidad académica.',
     ],
   },
   {
-    title: '3. Finalidad del tratamiento',
+    title: '3. Finalidad del tratamiento de datos',
     paragraphs: [
-      'Sus datos son utilizados exclusivamente para:',
-      '• El registro y control de asistencia a clases o prácticas.\n• La comunicación entre supervisores/instructores y alumnos.\n• No utilizamos sus datos para fines publicitarios ni los vendemos a terceros.',
+      'Los datos personales recopilados se utilizan exclusivamente para las siguientes actividades:',
+      '• Identificar correctamente a los estudiantes.\n• Registrar y gestionar la asistencia a las actividades académicas.\n• Consultar el historial de asistencias.\n• Facilitar el seguimiento y control de asistencia por parte del personal universitario autorizado.\n• Generar información de asistencia necesaria para la gestión académica.',
+      'Los datos personales no serán utilizados para fines comerciales, publicitarios ni para propósitos ajenos al control de asistencia académica.',
     ],
   },
   {
-    title: '4. Base legal',
+    title: '4. Almacenamiento y seguridad de la información',
     paragraphs: [
-      'El tratamiento de sus datos se basa en el consentimiento explícito que usted otorga al marcar la casilla de aceptación al momento de crear su cuenta.',
+      'La información recopilada mediante ASISTENCIA IX se almacena en una base de datos alojada en la plataforma Neon, mientras que los servicios del backend se ejecutan en servidores de la Universidad Nacional Hermilio Valdizán (UNHEVAL).',
+      'Se adoptan medidas técnicas y organizativas destinadas a proteger los datos personales frente a accesos no autorizados, pérdida, alteración, divulgación o cualquier tratamiento indebido.',
+      'El acceso a la información está limitado al personal autorizado que necesite utilizarla para cumplir las funciones relacionadas con el control de asistencia académica.',
     ],
   },
   {
-    title: '5. Retención de datos',
+    title: '5. Compartición de datos personales',
     paragraphs: [
-      'Sus datos serán conservados mientras su cuenta permanezca activa. Si usted solicita la eliminación de su cuenta, sus datos personales y su historial de asistencias serán eliminados de nuestros servidores.',
+      'ASISTENCIA IX no vende, comercializa ni comparte los datos personales de sus usuarios con terceros para fines publicitarios o comerciales.',
+      'La información recopilada se utiliza exclusivamente dentro del ámbito de la gestión académica de la universidad.',
+      'La utilización de proveedores tecnológicos para el alojamiento de la base de datos y la infraestructura del sistema no implica que estos puedan utilizar libremente la información personal de los estudiantes. Su tratamiento deberá limitarse a las condiciones necesarias para prestar dichos servicios y a las obligaciones legales correspondientes.',
     ],
   },
   {
-    title: '6. Derechos del usuario',
+    title: '6. Conservación de los datos',
     paragraphs: [
-      'Usted tiene derecho a acceder, rectificar o eliminar su información. Puede ejercer estos derechos directamente desde la sección de "Perfil" de la aplicación o contactando al administrador.',
+      'Los datos personales se conservarán durante el tiempo necesario para cumplir con las finalidades académicas y administrativas para las que fueron recopilados, así como durante los plazos de conservación que resulten aplicables conforme a la normativa vigente y las disposiciones institucionales de la universidad.',
+      'Cuando los datos dejen de ser necesarios y no exista una obligación legal o administrativa que justifique su conservación, se procederá a su eliminación o al tratamiento que corresponda conforme a la legislación aplicable.',
     ],
   },
   {
-    title: '7. Terceros y Seguridad',
+    title: '7. Derechos de los usuarios',
     paragraphs: [
-      'Sus datos se almacenan de forma segura utilizando la infraestructura en la nube de Neon (PostgreSQL) y Render. Implementamos medidas de seguridad como cifrado de contraseñas y tokens de sesión para proteger su información.',
+      'Los estudiantes pueden ejercer los derechos reconocidos por la Ley N.º 29733, entre ellos:',
+      '• Derecho de información: conocer cómo y para qué se utilizan sus datos personales.\n• Derecho de acceso: solicitar información sobre los datos personales que se encuentran almacenados.\n• Derecho de rectificación: solicitar la corrección de datos personales incorrectos, incompletos o desactualizados.\n• Derecho de cancelación: solicitar la eliminación de sus datos personales cuando corresponda legalmente.\n• Derecho de oposición: oponerse al tratamiento de sus datos personales en los casos previstos por la legislación vigente.',
+    ],
+  },
+  {
+    title: '8. Solicitud de eliminación de datos personales',
+    paragraphs: [
+      'Los usuarios que deseen solicitar la eliminación de sus datos personales podrán presentar una solicitud formal ante la Universidad Nacional Hermilio Valdizán (UNHEVAL), a través de sus canales oficiales de atención o de la unidad responsable de la protección de datos personales.',
+      'La solicitud deberá permitir identificar al estudiante e indicar los datos cuya eliminación solicita.',
+      'La universidad evaluará la solicitud y procederá conforme a los plazos y condiciones establecidos en la normativa peruana. La eliminación podrá estar sujeta a las obligaciones legales, académicas o administrativas que justifiquen la conservación de determinados registros.',
+    ],
+  },
+  {
+    title: '9. Modificaciones de la política de privacidad',
+    paragraphs: [
+      'La Universidad Nacional Hermilio Valdizán se reserva el derecho de actualizar esta Política de Privacidad cuando resulte necesario debido a cambios en el funcionamiento de ASISTENCIA IX, mejoras en sus medidas de seguridad o modificaciones en la legislación aplicable.',
+      'Cualquier modificación será comunicada a través de los medios institucionales correspondientes o mediante la propia aplicación.',
+    ],
+  },
+  {
+    title: '10. Contacto',
+    paragraphs: [
+      'Para consultas, solicitudes de acceso, rectificación, cancelación u oposición al tratamiento de datos personales, los usuarios podrán comunicarse con la Universidad Nacional Hermilio Valdizán mediante sus canales oficiales de atención.',
+      '• Institución responsable: Universidad Nacional Hermilio Valdizán (UNHEVAL).\n• Aplicación: ASISTENCIA IX.\n• Finalidad: Control de asistencia académica.',
+      'Al utilizar ASISTENCIA IX, el usuario podrá consultar esta política para conocer las condiciones bajo las cuales se tratan sus datos personales y los mecanismos disponibles para ejercer sus derechos.',
     ],
   },
 ];
@@ -66,8 +99,8 @@ export default function PrivacyPolicyScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.policyCard}>
           <Text style={styles.eyebrow}>INFORMACIÓN LEGAL</Text>
-          <Text style={styles.title}>Política de privacidad de Asistencia IX</Text>
-          <Text style={styles.updated}>Última actualización: 26 de octubre de 2026</Text>
+          <Text style={styles.title}>POLÍTICA DE PRIVACIDAD DE ASISTENCIA IX</Text>
+          <Text style={styles.updated}>Última actualización: 2 de noviembre de 2026</Text>
 
           {sections.map((section) => (
             <View key={section.title} style={styles.section}>

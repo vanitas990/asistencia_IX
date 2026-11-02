@@ -12,27 +12,15 @@ import profileRouter from './routes/perfiles.js';
 import qrRouter from './routes/qr.js';
 import vinculacionesRouter from './routes/vinculaciones.js';
 
-const PORT = Number(process.env.PORT || 3000);
-if (!Number.isInteger(PORT) || PORT < 1 || PORT > 65535) {
+const PORT = process.env.PORT || 3000;
+const numericPort = Number(PORT);
+if (!Number.isInteger(numericPort) || numericPort < 1 || numericPort > 65535) {
   throw new Error('PORT must be a valid TCP port.');
 }
 
-const allowedOrigins = new Set(
-  (process.env.CORS_ORIGINS ?? 'http://localhost:8081,http://localhost:8082')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean),
-);
-
 const app = express();
 app.disable('x-powered-by');
-app.use(cors({
-  origin(origin, callback) {
-    callback(null, !origin || allowedOrigins.has(origin));
-  },
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-}));
+app.use(cors());
 app.use(express.json({ limit: '1.5mb' }));
 
 async function checkDatabase(_request, response, next) {
@@ -139,7 +127,7 @@ async function logDatabaseCapabilities() {
   }
 }
 
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(numericPort, '0.0.0.0', () => {
   console.log(`Asistencia IX API listening on port ${PORT}`);
   void logDatabaseCapabilities();
 });

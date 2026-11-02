@@ -1,4 +1,5 @@
 import * as MediaLibrary from 'expo-media-library/legacy';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import QRCode from 'react-native-qrcode-svg';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -57,11 +58,18 @@ export default function QrScreen() {
       throw new Error('La tarjeta con el código QR todavía no está lista.');
     }
 
-    return captureRef(qrCardRef, {
+    const capturedUri = await captureRef(qrCardRef, {
       format: 'png',
       quality: 1,
       result: 'tmpfile',
     });
+    if (!FileSystem.cacheDirectory) {
+      throw new Error('No se pudo acceder al directorio temporal de la aplicación.');
+    }
+
+    const fileUri = `${FileSystem.cacheDirectory}asistencia-ix-qr-${Date.now()}.png`;
+    await FileSystem.copyAsync({ from: capturedUri, to: fileUri });
+    return fileUri;
   }
 
   async function handleExportAndShare() {
@@ -94,7 +102,15 @@ export default function QrScreen() {
 
     setIsExporting(true);
     try {
-      const permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
+      let permission: Awaited<ReturnType<typeof MediaLibrary.requestPermissionsAsync>>;
+      try {
+        permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
+      } catch {
+        console.log('Guardado directo no disponible en Expo Go. Usa Compartir.');
+        Alert.alert('Guardar en galería', 'Para guardar en galería, usa el botón Compartir');
+        return;
+      }
+
       if (!permission.granted) {
         Alert.alert('Permiso denegado', 'Permite el acceso a fotos para guardar el QR en tu galería.');
         return;
@@ -180,7 +196,9 @@ export default function QrScreen() {
             ref={qrCardRef}
             style={styles.capturePosition}>
             <View style={styles.printCard}>
-              <Text style={styles.printTitle}>MARCA TU ASISTENCIA</Text>
+              <Text style={styles.printTitle}>
+                {userRole === 'alumno' ? 'CÓDIGO QR DEL ALUMNO' : 'MARCA TU ASISTENCIA'}
+              </Text>
               <View style={styles.printQrFrame}>
                 <QRCode value={token} size={250} color="#000000" backgroundColor="#FFFFFF" />
               </View>

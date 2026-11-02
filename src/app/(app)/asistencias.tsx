@@ -7,17 +7,6 @@ import { getAttendanceHistory, type AttendanceRecord } from '@/services/attendan
 import { cardElevation, colors, fonts } from '@/theme';
 import { formatLocalTimestamp } from '@/utils/date';
 
-function getLimaDate() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date());
-  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
 export default function AttendancesScreen() {
   const { apiFetch, user, isLoading: isAuthLoading } = useAuth();
   const userRole = user?.rol;
@@ -34,7 +23,7 @@ export default function AttendancesScreen() {
     if (showLoading) setIsLoading(true);
     try {
       const result = userRole === 'supervisor'
-        ? await getAttendanceHistory(apiFetch, 50, undefined, getLimaDate(), true)
+        ? await getAttendanceHistory(apiFetch, 50, undefined, undefined, true)
         : await getAttendanceHistory(apiFetch);
       const newestId = result.data[0]?.id ?? null;
       if (

@@ -60,7 +60,7 @@ export default function AlumnoAttendanceScreen() {
         <View style={styles.headerCard}>
           <Text style={styles.eyebrow}>HISTORIAL</Text>
           <Text style={styles.title} numberOfLines={2}>{nombre || 'Alumno'}</Text>
-          <Text style={styles.subtitle}>Últimas 50 asistencias registradas.</Text>
+          <Text style={styles.subtitle}>Historial completo · últimas 50 asistencias.</Text>
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
           {isLoading && <ActivityIndicator color={colors.primary} style={styles.loader} />}
         </View>

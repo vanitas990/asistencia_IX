@@ -189,7 +189,9 @@ router.get('/', async (request, response, next) => {
     return;
   }
   const { limit, offset, alumno_id: alumnoId, fecha } = parsed.data;
-  const shouldFilterByDate = request.auth.role === 'supervisor' || fecha !== undefined;
+  const isSupervisorDailyList = request.auth.role === 'supervisor' && alumnoId === undefined;
+  const shouldFilterByDate = isSupervisorDailyList || fecha !== undefined;
+  const filterDate = isSupervisorDailyList ? undefined : fecha;
 
   try {
     if (request.auth.role === 'supervisor' && alumnoId !== undefined) {
@@ -217,7 +219,7 @@ router.get('/', async (request, response, next) => {
         ? await sql`
         WITH date_window AS (
           SELECT COALESCE(
-            ${fecha ?? null}::date,
+            ${filterDate ?? null}::date,
             (statement_timestamp() AT TIME ZONE 'America/Lima')::date
           )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
         )
@@ -251,7 +253,7 @@ router.get('/', async (request, response, next) => {
         : await sql`
         WITH date_window AS (
           SELECT COALESCE(
-            ${fecha ?? null}::date,
+            ${filterDate ?? null}::date,
             (statement_timestamp() AT TIME ZONE 'America/Lima')::date
           )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
         )
@@ -284,7 +286,7 @@ router.get('/', async (request, response, next) => {
       : await sql`
         WITH date_window AS (
           SELECT COALESCE(
-            ${fecha ?? null}::date,
+            ${filterDate ?? null}::date,
             (statement_timestamp() AT TIME ZONE 'America/Lima')::date
           )::timestamp AT TIME ZONE 'America/Lima' AS starts_at
         )

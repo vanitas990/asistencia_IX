@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#0d0f12">
+    <meta name="theme-color" content="#121c18">
     <meta
       name="description"
       content="Descarga ASISTENCIA IX para Android desde la página oficial de la Universidad Nacional Hermilio Valdizán."
@@ -12,19 +12,15 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Fira+Code:wght@500;700&display=swap"
       rel="stylesheet"
     >
     <style>
       :root {
         color-scheme: dark;
-        font-family: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        color: #e2e8f0;
-        background-color: #0b0d10;
-        font-synthesis: none;
-        text-rendering: optimizeLegibility;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
+        font-family: "Outfit", sans-serif;
+        color: #d1dcd5;
+        background-color: #121c18;
       }
 
       * {
@@ -34,198 +30,185 @@
       body {
         min-height: 100vh;
         margin: 0;
-        padding: 40px 20px;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        background: 
+          radial-gradient(circle at 10% 20%, rgba(34, 74, 58, 0.4), transparent 40%),
+          radial-gradient(circle at 90% 80%, rgba(46, 96, 75, 0.3), transparent 50%),
+          #121c18;
+      }
+
+      /* Estructura a pantalla completa dividida en grid para PC y apilada en móvil */
+      .page-wrapper {
+        flex: 1;
+        width: 100%;
+        min-height: 100vh;
         display: grid;
-        place-items: center;
-        background:
-          radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15), transparent 50%),
-          radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.1), transparent 40%),
-          #0b0d10;
+        grid-template-columns: 1.1fr 0.9fr;
+        align-items: center;
+        gap: 40px;
+        padding: 60px clamp(24px, 6vw, 96px);
+        max-width: 1600px;
+        margin: 0 auto;
       }
 
-      main {
-        width: min(100%, 540px);
-        padding: clamp(28px, 6vw, 48px);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 28px;
-        background: rgba(18, 22, 31, 0.75);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        box-shadow: 
-          0 30px 60px -12px rgba(0, 0, 0, 0.56),
-          0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-        text-align: center;
+      @media (max-width: 968px) {
+        .page-wrapper {
+          grid-template-columns: 1fr;
+          padding: 40px 20px;
+          gap: 30px;
+          text-align: center;
+        }
       }
 
-      .mark-container {
-        position: relative;
-        width: 76px;
-        height: 76px;
-        margin: 0 auto 20px;
+      .hero-content {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      @media (max-width: 968px) {
+        .hero-content {
+          align-items: center;
+        }
       }
 
       .mark {
-        width: 100%;
-        height: 100%;
-        display: grid;
-        place-items: center;
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 22px;
-        background: linear-gradient(135deg, rgba(30, 27, 75, 0.6), rgba(15, 23, 42, 0.8));
-        color: #a78bfa;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 2rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 8px 16px;
+        margin-bottom: 20px;
+        border: 1px solid rgba(89, 142, 115, 0.3);
+        border-radius: 12px;
+        background: rgba(30, 52, 42, 0.6);
+        color: #8cd3af;
+        font-family: "Fira Code", monospace;
+        font-size: 0.9rem;
         font-weight: 700;
-        box-shadow: 0 0 20px rgba(124, 58, 237, 0.25);
+        letter-spacing: 0.1em;
       }
 
       .eyebrow {
-        margin: 0 0 10px;
-        color: #818cf8;
-        font-family: "JetBrains Mono", monospace;
-        font-size: 0.75rem;
+        margin: 0 0 12px;
+        color: #d99b5b;
+        font-family: "Fira Code", monospace;
+        font-size: 0.8rem;
         font-weight: 700;
-        letter-spacing: 0.18em;
+        letter-spacing: 0.2em;
         text-transform: uppercase;
       }
 
       h1 {
-        margin: 0;
-        color: #f8fafc;
-        font-size: clamp(2rem, 7vw, 2.75rem);
+        margin: 0 0 16px;
+        color: #edf5f0;
+        font-size: clamp(2.5rem, 5vw, 4.2rem);
         font-weight: 800;
-        letter-spacing: -0.03em;
-        line-height: 1.15;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
       }
 
       .intro {
-        max-width: 440px;
-        margin: 16px auto 28px;
-        color: #94a3b8;
-        font-size: 0.95rem;
-        line-height: 1.65;
+        max-width: 520px;
+        margin: 0 0 32px;
+        color: #9cb3a5;
+        font-size: 1.05rem;
+        line-height: 1.7;
       }
 
       .download-button {
-        min-height: 56px;
+        min-height: 60px;
         width: 100%;
-        padding: 16px 28px;
+        max-width: 360px;
+        padding: 16px 32px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         gap: 12px;
         border: none;
-        border-radius: 16px;
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-        box-shadow: 0 8px 24px -4px rgba(99, 102, 241, 0.4);
-        color: #ffffff;
-        font-size: 1rem;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #438a6a 0%, #2f614a 100%);
+        box-shadow: 0 10px 30px -6px rgba(47, 97, 74, 0.5);
+        color: #f4fbf7;
+        font-size: 1.05rem;
         font-weight: 700;
         text-decoration: none;
-        transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+        transition: all 200ms ease;
       }
 
       .download-button:hover {
         transform: translateY(-2px);
-        box-shadow: 0 12px 32px -4px rgba(139, 92, 246, 0.5);
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+        background: linear-gradient(135deg, #4f9c78 0%, #376f55 100%);
+        box-shadow: 0 14px 36px -6px rgba(47, 97, 74, 0.7);
       }
 
-      .download-button:active {
-        transform: translateY(0);
-      }
-
-      .download-button:focus-visible {
-        outline: 2px solid #a78bfa;
-        outline-offset: 4px;
-      }
-
-      .instructions {
-        margin: 32px 0 0;
-        padding: 22px 24px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        border-radius: 20px;
-        background: rgba(15, 23, 42, 0.5);
+      .instructions-panel {
+        width: 100%;
+        padding: 32px;
+        border: 1px solid rgba(89, 142, 115, 0.15);
+        border-radius: 24px;
+        background: rgba(22, 36, 30, 0.7);
+        backdrop-filter: blur(12px);
         text-align: left;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
       }
 
-      .instructions h2 {
-        margin: 0 0 12px;
-        color: #f1f5f9;
-        font-size: 1.05rem;
+      .instructions-panel h2 {
+        margin: 0 0 16px;
+        color: #edf5f0;
+        font-size: 1.25rem;
         font-weight: 700;
       }
 
-      .instructions ol {
+      .instructions-panel ol {
         margin: 0;
         padding-left: 20px;
-        color: #cbd5e1;
-        font-size: 0.9rem;
-        line-height: 1.7;
+        color: #b5c7bc;
+        font-size: 0.95rem;
+        line-height: 1.8;
       }
 
-      .instructions li::marker {
-        color: #818cf8;
+      .instructions-panel li::marker {
+        color: #d99b5b;
         font-weight: 700;
       }
 
-      .instructions li + li {
-        margin-top: 6px;
+      .instructions-panel li + li {
+        margin-top: 8px;
       }
 
       .note {
-        margin: 18px 0 0;
-        padding: 12px 14px;
-        border-left: 3px solid #f59e0b;
-        border-radius: 0 8px 8px 0;
-        background: rgba(245, 158, 11, 0.08);
-        color: #fbbf24;
-        font-size: 0.8rem;
-        line-height: 1.5;
+        margin: 20px 0 0;
+        padding: 14px 16px;
+        border-left: 3px solid #d99b5b;
+        border-radius: 0 10px 10px 0;
+        background: rgba(217, 155, 91, 0.08);
+        color: #e5b27e;
+        font-size: 0.85rem;
+        line-height: 1.6;
       }
 
       footer {
-        margin-top: 32px;
-        color: #64748b;
-        font-size: 0.78rem;
-        font-weight: 500;
-      }
-
-      @media (max-width: 480px) {
-        body {
-          padding: 20px 12px;
-        }
-
-        main {
-          border-radius: 22px;
-        }
-
-        .instructions {
-          padding: 18px;
-        }
-      }
-
-      @media (prefers-reduced-motion: reduce) {
-        *,
-        *::before,
-        *::after {
-          animation: none !important;
-          transition-duration: 0.01ms !important;
-        }
+        width: 100%;
+        padding: 24px 20px;
+        text-align: center;
+        color: #728a7c;
+        font-size: 0.82rem;
+        border-top: 1px solid rgba(89, 142, 115, 0.1);
+        background: rgba(14, 23, 19, 0.9);
       }
     </style>
   </head>
   <body>
-    <main>
-      <header>
-        <div class="mark-container">
-          <div class="mark" aria-hidden="true">IX</div>
-        </div>
+    <div class="page-wrapper">
+      <div class="hero-content">
+        <div class="mark" aria-hidden="true">IX // EON</div>
         <p class="eyebrow">UNHEVAL · ASISTENCIA IX</p>
         <h1>Descarga<br>ASISTENCIA IX</h1>
         <p class="intro">
-          Registra y consulta tu asistencia de forma rápida. Descarga la versión beta
-          para Android desde el release oficial del proyecto.
+          Plataforma oficial de registro y consulta de asistencia académica. 
+          Obtén la versión beta optimizada directamente para dispositivos Android.
         </p>
         <a
           class="download-button"
@@ -235,22 +218,23 @@
           <span aria-hidden="true">↓</span>
           Descargar APK (Beta)
         </a>
-      </header>
+      </div>
 
-      <section class="instructions" aria-labelledby="install-title">
-        <h2 id="install-title">Cómo instalar</h2>
+      <div class="instructions-panel">
+        <h2>Guía de instalación</h2>
         <ol>
-          <li>Descarga el archivo APK en tu dispositivo Android.</li>
-          <li>Abre el archivo y, si Android lo solicita, permite instalar aplicaciones desde esta fuente en Ajustes.</li>
-          <li>Vuelve al instalador, confirma la instalación y abre ASISTENCIA IX.</li>
+          <li>Descarga el archivo APK directamente en tu dispositivo Android.</li>
+          <li>Abre el instalador y habilita los permisos de orígenes desconocidos si el sistema lo requiere.</li>
+          <li>Confirma la instalación y comienza a utilizar ASISTENCIA IX.</li>
         </ol>
         <p class="note">
-          Android puede mostrar una advertencia porque la app beta se instala fuera de Google Play.
-          Permite la instalación únicamente si descargaste el APK desde este enlace oficial.
+          Al tratarse de una compilación independiente fuera de tiendas oficiales, asegúrate de haber obtenido el paquete desde este enlace legítimo.
         </p>
-      </section>
+      </div>
+    </div>
 
-      <footer>ASISTENCIA IX · Universidad Nacional Hermilio Valdizán</footer>
-    </main>
+    <footer>
+      ASISTENCIA IX · Universidad Nacional Hermilio Valdizán
+    </footer>
   </body>
 </html>

@@ -13,7 +13,7 @@ const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').
 export async function consultStudentByDni(dni: string): Promise<StudentRecord> {
   let response: Response;
   try {
-    response = await fetch(`${apiBaseUrl}/api/estudiantes/consultar/${encodeURIComponent(dni)}`);
+    response = await fetch(`${apiBaseUrl}/estudiantes/consultar/${encodeURIComponent(dni)}`);
   } catch {
     throw new Error('No se pudo conectar con el servicio de consulta de estudiantes.');
   }

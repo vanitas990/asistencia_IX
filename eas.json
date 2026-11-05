@@ -7,6 +7,9 @@
       "distribution": "store",
       "autoIncrement": true,
       "environment": "production",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ihub.unheval.edu.pe/asistencia/api"
+      },
       "android": {
         "buildType": "app-bundle"
       }
@@ -14,6 +17,9 @@
     "preview": {
       "distribution": "internal",
       "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://ihub.unheval.edu.pe/asistencia/api"
+      },
       "android": {
         "buildType": "apk"
       }

@@ -3,4 +3,3 @@
 ### Probar API UNHEVAL (Buscar por DNI)
 GET https://innova.unheval.edu.pe/api/datos/personas?dni=76683028
 X-API-Key: {{$dotenv UNHEVAL_API_KEY}}
-y

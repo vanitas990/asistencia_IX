@@ -56,7 +56,7 @@ export function setAccessToken(token: string | null) {
 
 async function postJson(path: string, payload: unknown): Promise<Response> {
   try {
-    return await fetch(`${apiBaseUrl}/api/auth/${path}`, {
+    return await fetch(`${apiBaseUrl}/auth/${path}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -149,8 +149,10 @@ export async function authenticatedFetch(
   onSessionRefreshed?: (session: RefreshedSession) => Promise<void>,
   onSessionExpired?: () => Promise<void>,
 ) {
-  const requestUrl = new URL(path, `${apiBaseUrl}/`);
-  if (requestUrl.origin !== new URL(apiBaseUrl).origin) {
+  const apiPath = path.replace(/^\/api(?=\/|$)/, '').replace(/^\/+/, '');
+  const requestUrl = new URL(apiPath, `${apiBaseUrl}/`);
+  const apiBase = new URL(apiBaseUrl);
+  if (requestUrl.origin !== apiBase.origin || !requestUrl.pathname.startsWith(`${apiBase.pathname}/`)) {
     throw new Error('Las solicitudes autenticadas solo pueden enviarse a la API configurada.');
   }
 

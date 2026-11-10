@@ -54,7 +54,7 @@ export default function AlumnoAttendanceScreen() {
       data={records}
       keyExtractor={(item) => String(item.id)}
       refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={() => void loadAttendance()} tintColor={colors.primary} />
+        <RefreshControl refreshing={isLoading} onRefresh={() => void loadAttendance()} tintColor={colors.text} />
       }
       ListHeaderComponent={
         <View style={styles.headerCard}>
@@ -62,7 +62,7 @@ export default function AlumnoAttendanceScreen() {
           <Text style={styles.title} numberOfLines={2}>{nombre || 'Alumno'}</Text>
           <Text style={styles.subtitle}>Historial completo · últimas 50 asistencias.</Text>
           {error && <Text accessibilityRole="alert" style={styles.error}>{error}</Text>}
-          {isLoading && <ActivityIndicator color={colors.primary} style={styles.loader} />}
+          {isLoading && <ActivityIndicator color={colors.text} style={styles.loader} />}
         </View>
       }
       renderItem={({ item }) => (
@@ -111,6 +111,6 @@ const styles = StyleSheet.create({
   entryText: { color: colors.success },
   exitText: { color: colors.earth },
   emptyState: { alignItems: 'center', gap: 8, paddingVertical: 24 },
-  emptyIcon: { color: '#94a3b8', fontSize: 32 },
+  emptyIcon: { color: '#E0E0E0', fontSize: 32 },
   empty: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
 });

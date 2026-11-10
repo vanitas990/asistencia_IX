@@ -16,6 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import ProfileAvatar from '@/components/ProfileAvatar';
+import PhoneConfirmationModal from '@/components/PhoneConfirmationModal';
 import { useAuth } from '@/context/AuthContext';
 import { cardElevation, colors, fonts } from '@/theme';
 import {
@@ -33,7 +34,11 @@ export default function HomeScreen() {
   const [dniAlumno, setDniAlumno] = useState('');
   const [pendingRequestCount, setPendingRequestCount] = useState(0);
   const [hasLoadedHomeData, setHasLoadedHomeData] = useState(false);
+  const [isPhonePromptDismissed, setIsPhonePromptDismissed] = useState(false);
   const userRole = user?.rol;
+  const shouldConfirmPhone = user?.rol === 'alumno'
+    && user.origen_datos === 'api'
+    && !isPhonePromptDismissed;
   const { width: windowWidth } = useWindowDimensions();
   const isNarrowScreen = windowWidth < 390;
 
@@ -131,7 +136,7 @@ export default function HomeScreen() {
   if (isLoading) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color={colors.text} />
       </View>
     );
   }
@@ -148,6 +153,12 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <PhoneConfirmationModal
+      visible={shouldConfirmPhone}
+      telefonoActual={user.telefono}
+      onConfirm={() => setIsPhonePromptDismissed(true)}
+      onRequestClose={() => setIsPhonePromptDismissed(true)}
+    />
     <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
       <View style={styles.content}>
         <View style={styles.welcomeCard}>
@@ -204,7 +215,7 @@ export default function HomeScreen() {
                 maxLength={8}
                 onChangeText={(value) => setDniAlumno(value.replace(/\D/g, ''))}
                 placeholder="DNI del alumno"
-                placeholderTextColor="#94a3b8"
+                placeholderTextColor="#E0E0E0"
                 style={styles.input}
                 value={dniAlumno}
               />
@@ -377,7 +388,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.earth,
     borderRadius: 16,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     ...cardElevation,
   },
   avatarPressable: { position: 'relative' },
@@ -422,30 +433,30 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { flex: 1, color: colors.text, fontFamily: fonts.display, fontSize: 17 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  countBadge: { minWidth: 28, overflow: 'hidden', borderRadius: 14, backgroundColor: colors.earthLight, color: colors.primary, textAlign: 'center', fontFamily: fonts.semibold, fontSize: 13, paddingHorizontal: 7, paddingVertical: 4 },
+  countBadge: { minWidth: 28, overflow: 'hidden', borderRadius: 14, backgroundColor: colors.earthLight, color: colors.text, textAlign: 'center', fontFamily: fonts.semibold, fontSize: 13, paddingHorizontal: 7, paddingVertical: 4 },
   helpText: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
   optionsSection: { gap: 10 },
   optionsTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 18 },
   optionsRow: { flexDirection: 'row', gap: 10 },
   quickOption: { flex: 1, minHeight: 92, alignItems: 'center', justifyContent: 'center', gap: 7, padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, ...cardElevation },
-  quickOptionIcon: { color: colors.primary, fontSize: 22, fontWeight: '800' },
+  quickOptionIcon: { color: colors.text, fontSize: 22, fontWeight: '800' },
   quickOptionLabel: { color: colors.text, fontFamily: fonts.medium, fontSize: 11, textAlign: 'center' },
   input: { minHeight: 50, borderColor: colors.border, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, color: colors.text, backgroundColor: colors.surfaceMuted, fontFamily: fonts.body, fontSize: 16 },
   button: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.primary, paddingHorizontal: 12, ...cardElevation },
   buttonText: { color: '#ffffff', fontFamily: fonts.semibold, fontSize: 14, textAlign: 'center' },
   buttonIcon: { color: '#ffffff', fontSize: 16, fontWeight: '800' },
   secondaryButton: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  secondaryButtonText: { color: colors.primary },
+  secondaryButtonText: { color: colors.text },
   compactButton: { minHeight: 40, paddingHorizontal: 13 },
   quickActions: { flexDirection: 'row', gap: 10 },
   listItem: { flexDirection: 'row', alignItems: 'center', gap: 11, padding: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 16, backgroundColor: colors.surface, ...cardElevation },
   personAvatar: { width: 42, height: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 21, backgroundColor: colors.earthLight },
-  personInitial: { color: colors.primary, fontFamily: fonts.display, fontSize: 17 },
+  personInitial: { color: colors.text, fontFamily: fonts.display, fontSize: 17 },
   listText: { flex: 1, gap: 3 },
   listTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 14 },
   listSubtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 12 },
   emptyState: { alignItems: 'center', gap: 6, paddingVertical: 8 },
-  emptyIcon: { color: '#94a3b8', fontSize: 25 },
+  emptyIcon: { color: '#E0E0E0', fontSize: 25 },
   unlinkButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.earthLight },
   unlinkIcon: { color: colors.earth, fontSize: 17 },
   pressed: { opacity: 0.84 },

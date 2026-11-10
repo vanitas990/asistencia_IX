@@ -18,8 +18,9 @@ const router = Router();
 
 const loginSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
-  password: z.string().min(1).max(128),
-}).strict();
+  password: z.string().nullable().optional(),
+  rol: z.enum(['alumno', 'supervisor']).optional().default('supervisor'),
+});
 
 const refreshSchema = z.object({
   refresh_token: z.string().min(1).max(4096),
@@ -41,6 +42,9 @@ function redactRegistrationValue(value, registrationData) {
     registrationData?.nombre,
     registrationData?.facultad,
     registrationData?.carrera,
+    registrationData?.correo_institucional,
+    registrationData?.correo_personal,
+    registrationData?.telefono,
     registrationData?.password,
   ].filter((item) => typeof item === 'string' && item.length > 0);
 
@@ -51,23 +55,8 @@ function redactRegistrationValue(value, registrationData) {
 }
 
 router.post('/register', authRateLimit('register'), async (request, response, next) => {
-  const body = request.body && typeof request.body === 'object' && !Array.isArray(request.body)
-    ? request.body
-    : {};
-  console.log('Body recibido (datos sensibles redactados):', {
-    role: body.rol,
-    fields: Object.keys(body),
-    dni: typeof body.dni === 'string' ? `******${body.dni.slice(-2)}` : undefined,
-    password: body.password === undefined ? 'missing' : '[REDACTED]',
-  });
-
   const parsed = registerSchema.safeParse(request.body);
   if (!parsed.success) {
-    console.log('Error de Zod detallado:', parsed.error.issues.map((issue) => ({
-      path: issue.path.join('.'),
-      code: issue.code,
-      message: issue.message,
-    })));
     response.status(400).json({ error: 'Los datos enviados no son válidos.' });
     return;
   }
@@ -75,7 +64,7 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
   const registrationData = parsed.data;
   const sensitiveRegistrationData = { ...registrationData };
   try {
-    const studentRecord = parsed.data.rol === 'alumno'
+    const studentRecord = parsed.data.rol === 'alumno' && parsed.data.origen_datos === 'api'
       ? await lookupUniversityStudent(parsed.data.dni)
       : null;
     Object.assign(sensitiveRegistrationData, studentRecord);
@@ -91,6 +80,11 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           nombre,
           facultad,
           carrera,
+          telefono,
+          correo_institucional,
+          correo_personal,
+          correo_preferido,
+          origen_datos,
           password_hash
         )
         VALUES (
@@ -98,8 +92,15 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           ${parsed.data.dni},
           ${parsed.data.rol},
           ${studentRecord?.nombre ?? parsed.data.nombre},
-          ${parsed.data.rol === 'supervisor' ? null : studentRecord.facultad},
+          ${parsed.data.rol === 'supervisor' ? null : studentRecord?.facultad ?? parsed.data.facultad ?? null},
           ${studentRecord?.carrera ?? parsed.data.carrera},
+          ${studentRecord?.telefono ?? parsed.data.telefono ?? null},
+          ${studentRecord
+            ? studentRecord.correo_institucional
+            : parsed.data.correo_institucional ?? null},
+          ${parsed.data.correo_personal ?? null},
+          ${parsed.data.correo_preferido},
+          ${parsed.data.origen_datos},
           ${passwordHash}
         )
         RETURNING
@@ -110,6 +111,11 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           nombre,
           facultad,
           carrera,
+          telefono,
+          correo_institucional,
+          correo_personal,
+          correo_preferido,
+          origen_datos,
           created_at::text AS created_at,
           avatar_url
       `;
@@ -155,6 +161,8 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
     return response.status(400).json({ error: 'El DNI o la contraseña no tienen un formato válido.' });
   }
 
+  const { dni, password, rol } = parsed.data;
+
   try {
     const rows = await sql`
       SELECT
@@ -165,15 +173,73 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
         nombre,
         facultad,
         carrera,
+        telefono,
+        correo_institucional,
+        correo_personal,
+        correo_preferido,
+        origen_datos,
         created_at::text AS created_at,
         avatar_url,
         password_hash
       FROM perfiles
-      WHERE dni = ${parsed.data.dni}
+      WHERE dni = ${dni}
       LIMIT 1
     `;
-    const profile = rows[0];
-    if (!profile) {
+    let profile = rows[0];
+
+    // ==========================================
+    // FLUJO 1: ALUMNOS (Auto-registro vía UNHEVAL)
+    // ==========================================
+    if (rol === 'alumno') {
+      // No permitir que el rol alumno autentique una cuenta de supervisor.
+      if (profile) {
+        if (profile.rol !== 'alumno') {
+          return response.status(401).json({ error: 'DNI o contraseña incorrectos.' });
+        }
+        const { password_hash: _passwordHash, ...user } = profile;
+        return response.status(200).json({ data: createAuthResponse(user) });
+      }
+
+      // Si NO existe, consultamos UNHEVAL y lo creamos
+      try {
+        const studentRecord = await lookupUniversityStudent(dni);
+        const tempPasswordHash = await hashPassword(dni); // DNI como contraseña temporal
+        const authUserId = generateAuthUserId();
+
+        const newUserRows = await sql`
+          INSERT INTO perfiles (
+            auth_user_id, dni, rol, nombre, facultad, carrera, telefono,
+            correo_institucional, correo_preferido, origen_datos, password_hash
+          )
+          VALUES (
+            ${authUserId}::uuid, ${dni}, 'alumno', ${studentRecord.nombre},
+            ${studentRecord.facultad}, ${studentRecord.carrera}, ${studentRecord.telefono || null},
+            ${studentRecord.correo_institucional}, 'institucional', 'api', ${tempPasswordHash}
+          )
+          RETURNING
+            id, auth_user_id::text AS auth_user_id, dni, rol, nombre, facultad, carrera,
+            telefono, correo_institucional, correo_personal, correo_preferido, origen_datos,
+            created_at::text AS created_at, avatar_url
+        `;
+
+        const newUser = newUserRows[0];
+        return response.status(200).json({ data: createAuthResponse(newUser) });
+
+      } catch (error) {
+        if (error instanceof StudentLookupError) {
+          const message = error.status === 404
+            ? 'Alumno no encontrado en la UNHEVAL. Regístrate manualmente.'
+            : error.message;
+          return response.status(error.status).json({ error: message });
+        }
+        throw error;
+      }
+    }
+
+    // ==========================================
+    // FLUJO 2: SUPERVISORES (Login normal)
+    // ==========================================
+    if (!profile || profile.rol !== 'supervisor') {
       return response.status(401).json({ error: 'DNI o contraseña incorrectos.' });
     }
     if (!profile.password_hash) {
@@ -183,14 +249,9 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
 
     let passwordMatches;
     try {
-      passwordMatches = await verifyPassword(parsed.data.password, profile.password_hash);
+      passwordMatches = await verifyPassword(password ?? '', profile.password_hash);
     } catch (error) {
-      console.error('Password verification failed:', {
-        name: error?.name ?? 'UnknownError',
-        message: error?.message,
-        stack: error?.stack,
-        code: error?.code,
-      });
+      console.error('Password verification failed:', error);
       return next(error);
     }
 
@@ -237,6 +298,11 @@ router.post('/refresh', authRateLimit('refresh'), async (request, response, next
         nombre,
         facultad,
         carrera,
+        telefono,
+        correo_institucional,
+        correo_personal,
+        correo_preferido,
+        origen_datos,
         created_at::text AS created_at,
         avatar_url
       FROM perfiles

@@ -106,7 +106,6 @@ export default function QrScreen() {
       try {
         permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
       } catch {
-        console.log('Guardado directo no disponible en Expo Go. Usa Compartir.');
         Alert.alert('Guardar en galería', 'Para guardar en galería, usa el botón Compartir');
         return;
       }
@@ -167,7 +166,7 @@ export default function QrScreen() {
         </Text>
 
         {isLoading ? (
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={colors.text} size="large" />
         ) : token ? (
           <>
             <View style={styles.qrFrame}>
@@ -186,7 +185,7 @@ export default function QrScreen() {
               disabled={isExporting || isRegenerating}
               onPress={() => void handleExportAndShare()}
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, (isExporting || isRegenerating) && styles.disabled]}>
-              {isExporting ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.secondaryButtonText}>Compartir</Text>}
+              {isExporting ? <ActivityIndicator color={colors.text} /> : <Text style={styles.secondaryButtonText}>Compartir</Text>}
             </Pressable>
           </>
         ) : null}
@@ -276,9 +275,9 @@ const styles = StyleSheet.create({
   printQrFrame: { padding: 20, borderRadius: 18, backgroundColor: '#FFFFFF' },
   printFooter: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 2 },
   button: { minHeight: 50, width: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: colors.primary, ...cardElevation },
-  buttonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 15 },
-  secondaryButton: { minHeight: 48, width: '100%', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surface },
-  secondaryButtonText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 15 },
+  buttonText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 15 },
+  secondaryButton: { minHeight: 48, width: '100%', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surfaceMuted },
+  secondaryButtonText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 15 },
   dangerButton: { minHeight: 50, width: '100%', alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: '#b91c1c' },
   pressed: { opacity: 0.82 },
   disabled: { opacity: 0.55 },

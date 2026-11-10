@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import { getApiUrl } from '@/services/api';
+
 const studentSchema = z.object({
   nombre: z.string().trim().min(1),
   facultad: z.string().trim().min(1),
@@ -8,7 +10,7 @@ const studentSchema = z.object({
 
 export type StudentRecord = z.infer<typeof studentSchema>;
 
-const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+const apiBaseUrl = getApiUrl();
 
 export async function consultStudentByDni(dni: string): Promise<StudentRecord> {
   let response: Response;

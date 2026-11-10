@@ -1,4 +1,6 @@
 export type UserRole = 'supervisor' | 'alumno';
+export type ProfileOrigin = 'api' | 'manual';
+export type PreferredEmail = 'institucional' | 'personal';
 
 export interface Perfil {
   id: number;
@@ -8,6 +10,11 @@ export interface Perfil {
   nombre: string;
   facultad: string | null;
   carrera: string;
+  telefono: string | null;
+  correo_institucional: string | null;
+  correo_personal: string | null;
+  correo_preferido: PreferredEmail;
+  origen_datos: ProfileOrigin;
   created_at: string;
   avatar_url: string | null;
 }

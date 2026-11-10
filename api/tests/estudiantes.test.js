@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { lookupUniversityStudent, StudentLookupError } from '../utils/estudiantes.js';
+import {
+  lookupUniversityStudent,
+  StudentLookupError,
+  updateUniversityStudentPhone,
+} from '../utils/estudiantes.js';
 
 const originalFetch = globalThis.fetch;
 const originalUrl = process.env.UNHEVAL_API_URL;
@@ -28,6 +32,8 @@ function studentResponse(overrides = {}) {
       nombres: 'ACOSTA JIMENEZ RUSBEL OSCAR',
       nro_doc: '76683028',
       escuela_priorizada: 'Ingeniería Agronómica',
+      correo_institucional: '76683028@unheval.edu.pe',
+      telefono: null,
       tipo_persona: { tipo: 'Estudiante' },
       estudiante: { escuela: { id_facultad: 4 } },
       ...overrides,
@@ -43,6 +49,8 @@ test('returns the configured mock student when the university API URL is absent'
       nombre: 'Nestor Armas',
       facultad: 'Ingeniería de Sistemas',
       carrera: 'Ingeniería de Software',
+      correo_institucional: null,
+      telefono: null,
     });
   } finally {
     restoreEnvironment();
@@ -69,12 +77,107 @@ test('maps the university student and resolves the faculty using the API key', a
       dni: '76683028',
       carrera: 'Ingeniería Agronómica',
       facultad: 'Facultad de Ciencias Agrarias',
+      correo_institucional: '76683028@unheval.edu.pe',
+      telefono: null,
     });
     assert.deepEqual(requests.map(({ url }) => url), [
       `${apiBaseUrl}personas?dni=76683028`,
       'https://university.example/api/datos/facultades',
     ]);
     assert.ok(requests.every(({ options }) => options.headers['X-API-Key'] === 'test-api-key'));
+  } finally {
+    restoreEnvironment();
+  }
+});
+
+test('maps institutional email aliases and phone returned by the university API', async () => {
+  setApiEnvironment();
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('/personas?')) {
+      return new Response(JSON.stringify(studentResponse({
+        correo_institucional: undefined,
+        email_institucional: 'alumno@unheval.edu.pe',
+        telefono: '987654321',
+      })), { status: 200 });
+    }
+    return new Response(JSON.stringify({
+      ok: true,
+      data: [{ id_facultad: 4, nombre: 'Facultad de Ciencias Agrarias' }],
+    }), { status: 200 });
+  };
+
+  try {
+    const result = await lookupUniversityStudent('76683028');
+    assert.equal(result.correo_institucional, 'alumno@unheval.edu.pe');
+    assert.equal(result.telefono, '987654321');
+  } finally {
+    restoreEnvironment();
+  }
+});
+
+test('updates the student phone using the expected UNHEVAL POST payload and API key', async () => {
+  setApiEnvironment();
+  let request;
+  globalThis.fetch = async (url, options) => {
+    request = { url: String(url), options };
+    return new Response(null, { status: 204 });
+  };
+
+  try {
+    await updateUniversityStudentPhone({
+      dni: '76683028',
+      nombre: 'Alumno de Prueba',
+      correo: 'alumno@unheval.edu.pe',
+      telefono: '987654321',
+    });
+    assert.equal(request.url, `${apiBaseUrl}personas`);
+    assert.equal(request.options.method, 'POST');
+    assert.equal(request.options.headers['X-API-Key'], 'test-api-key');
+    assert.equal(request.options.headers['Content-Type'], 'application/json');
+    assert.deepEqual(JSON.parse(request.options.body), {
+      nro_doc: '76683028',
+      nombres: 'Alumno de Prueba',
+      correo: 'alumno@unheval.edu.pe',
+      telefono: '987654321',
+    });
+  } finally {
+    restoreEnvironment();
+  }
+});
+
+test('rejects a failed university phone update', async () => {
+  setApiEnvironment();
+  globalThis.fetch = async () => new Response(null, { status: 500 });
+
+  try {
+    await assert.rejects(
+      updateUniversityStudentPhone({
+        dni: '76683028',
+        nombre: 'Alumno de Prueba',
+        correo: 'alumno@unheval.edu.pe',
+        telefono: '987654321',
+      }),
+      (error) => error instanceof StudentLookupError && error.status === 502,
+    );
+  } finally {
+    restoreEnvironment();
+  }
+});
+
+test('rejects a university phone update marked unsuccessful in the response body', async () => {
+  setApiEnvironment();
+  globalThis.fetch = async () => new Response(JSON.stringify({ ok: false }), { status: 200 });
+
+  try {
+    await assert.rejects(
+      updateUniversityStudentPhone({
+        dni: '76683028',
+        nombre: 'Alumno de Prueba',
+        correo: 'alumno@unheval.edu.pe',
+        telefono: '987654321',
+      }),
+      (error) => error instanceof StudentLookupError && error.status === 502,
+    );
   } finally {
     restoreEnvironment();
   }
@@ -150,12 +253,10 @@ test('returns 404 for an upstream not-found response', async () => {
   }
 });
 
-test('logs university request diagnostics and redacts the DNI from connection logs', async () => {
+test('redacts the DNI from university connection error logs', async () => {
   setApiEnvironment();
-  const originalLog = console.log;
   const originalError = console.error;
   const diagnostics = [];
-  console.log = (...values) => diagnostics.push(values);
   console.error = (...values) => diagnostics.push(values);
   globalThis.fetch = async () => {
     throw new Error('connection failed for DNI 76683028');
@@ -163,16 +264,11 @@ test('logs university request diagnostics and redacts the DNI from connection lo
 
   try {
     await assert.rejects(lookupUniversityStudent('76683028'), /connection failed/);
-    assert.ok(diagnostics.some(([label, url]) => (
-      label === '1. Consultando a UNHEVAL con URL:'
-      && String(url).includes('dni=%5BREDACTED%5D')
-    )));
     assert.ok(diagnostics.some(([label, message]) => (
       label === 'Error real de conexión a UNHEVAL:'
       && message === 'connection failed for DNI [REDACTED_DNI]'
     )));
   } finally {
-    console.log = originalLog;
     console.error = originalError;
     restoreEnvironment();
   }

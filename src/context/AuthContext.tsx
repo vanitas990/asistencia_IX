@@ -19,7 +19,12 @@ import {
   registerWithApi,
   setAccessToken,
 } from '@/services/auth-api';
-import { updateProfile as updateProfileData, updateProfileAvatar, type EditableProfile } from '@/services/profile-api';
+import {
+  updateProfile as updateProfileData,
+  updateProfileAvatar,
+  updateProfilePhone as updateProfilePhoneData,
+  type EditableProfile,
+} from '@/services/profile-api';
 import type { LoginFormData, RegisterFormData } from '@/schemas/auth.schema';
 import type { User } from '@/types';
 
@@ -36,6 +41,7 @@ interface AuthContextValue {
   apiFetch: (path: string, init?: RequestInit) => Promise<Response>;
   updateAvatar: (avatarUrl: string) => Promise<void>;
   updateProfile: (profile: EditableProfile) => Promise<void>;
+  updatePhone: (telefono: string) => Promise<void>;
   clearAuthError: () => void;
 }
 
@@ -233,6 +239,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
   }, [apiFetch]);
 
+  const updatePhone = useCallback(async (telefono: string) => {
+    if (!user) {
+      throw new Error('No hay una sesión activa para actualizar el teléfono.');
+    }
+    const updatedUser = await updateProfilePhoneData(apiFetch, user.dni, telefono);
+    await writeStoredValue(USER_KEY, JSON.stringify(userForSecureStore(updatedUser)));
+    setUser(updatedUser);
+  }, [apiFetch, user]);
+
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
   const value = useMemo(
@@ -246,9 +261,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       apiFetch,
       updateAvatar,
       updateProfile,
+      updatePhone,
       clearAuthError,
     }),
-    [user, isLoading, authError, login, logout, register, apiFetch, updateAvatar, updateProfile, clearAuthError],
+    [user, isLoading, authError, login, logout, register, apiFetch, updateAvatar, updateProfile, updatePhone, clearAuthError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

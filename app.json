@@ -42,7 +42,7 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#F7F5F0",
+          "backgroundColor": "#0A1017",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
@@ -55,10 +55,13 @@
           "photosPermission": "Permitir a $(PRODUCT_NAME) acceder a tus fotos.",
           "savePhotosPermission": "Permitir a $(PRODUCT_NAME) guardar fotos.",
           "isAccessMediaLocationEnabled": false,
-          "granularPermissions": ["photo"]
+          "granularPermissions": [
+            "photo"
+          ]
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

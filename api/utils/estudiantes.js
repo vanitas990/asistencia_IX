@@ -4,12 +4,18 @@ const mockStudent = {
   nombre: 'Nestor Armas',
   facultad: 'Ingeniería de Sistemas',
   carrera: 'Ingeniería de Software',
+  correo_institucional: null,
+  telefono: null,
 };
 
 const universityStudentSchema = z.object({
   nombres: z.string().trim().min(1),
   nro_doc: z.string().regex(/^\d{8}$/),
   escuela_priorizada: z.string().trim().min(1),
+  correo_institucional: z.string().trim().email().nullable().optional(),
+  email_institucional: z.string().trim().email().nullable().optional(),
+  correo: z.string().trim().email().nullable().optional(),
+  telefono: z.string().trim().min(7).max(20).nullable().optional(),
   tipo_persona: z.object({
     tipo: z.string().trim().min(1),
   }).passthrough(),
@@ -51,12 +57,6 @@ function studentLookupUrl(baseUrl, dni) {
 }
 
 async function fetchJson(url, apiKey, signal) {
-  const diagnosticUrl = new URL(url);
-  if (diagnosticUrl.searchParams.has('dni')) {
-    diagnosticUrl.searchParams.set('dni', '[REDACTED]');
-  }
-  console.log('1. Consultando a UNHEVAL con URL:', diagnosticUrl.toString());
-
   let response;
   try {
     response = await fetch(url, {
@@ -78,9 +78,7 @@ async function fetchJson(url, apiKey, signal) {
     throw error;
   }
 
-  console.log('2. Status de respuesta UNHEVAL:', response.status);
   if (response.status === 404) {
-    console.log('3. ¿La API devolvió data?', 0);
     return { response, body: null };
   }
 
@@ -93,12 +91,6 @@ async function fetchJson(url, apiKey, signal) {
     }
   }
 
-  console.log(
-    '3. ¿La API devolvió data?',
-    body && typeof body === 'object' && 'data' in body && Array.isArray(body.data)
-      ? body.data.length
-      : 0,
-  );
   return { response, body };
 }
 
@@ -159,7 +151,10 @@ export async function lookupUniversityStudent(dni) {
       throw new StudentLookupError('Alumno no encontrado.', 404);
     }
     if (!studentResult.response.ok) {
-      throw new StudentLookupError('No se pudo consultar el registro universitario.', 502);
+      const message = studentResult.response.status === 401 || studentResult.response.status === 403
+        ? 'La API de UNHEVAL rechazó la clave configurada.'
+        : 'No se pudo consultar el registro universitario.';
+      throw new StudentLookupError(message, 502);
     }
 
     const studentRows = z.object({
@@ -210,7 +205,67 @@ export async function lookupUniversityStudent(dni) {
       dni: parsedStudent.data.nro_doc,
       carrera: parsedStudent.data.escuela_priorizada,
       facultad: facultyName,
+      correo_institucional: parsedStudent.data.correo_institucional
+        ?? parsedStudent.data.email_institucional
+        ?? parsedStudent.data.correo
+        ?? null,
+      telefono: parsedStudent.data.telefono ?? null,
     };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function updateUniversityStudentPhone({ dni, nombre, correo, telefono }) {
+  const externalApiUrl = process.env.UNHEVAL_API_URL?.trim();
+  if (!externalApiUrl) {
+    throw new StudentLookupError('Falta configurar la URL de la API universitaria.', 500);
+  }
+
+  const apiKey = process.env.UNHEVAL_API_KEY?.trim();
+  if (!apiKey) {
+    throw new StudentLookupError('Falta configurar UNHEVAL_API_KEY en el entorno del servidor.', 500);
+  }
+
+  const url = endpointUrl(externalApiUrl, 'personas');
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8_000);
+  try {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey,
+        },
+        body: JSON.stringify({ nro_doc: dni, nombres: nombre, correo, telefono }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw new StudentLookupError('La actualización universitaria excedió el tiempo de espera.', 504);
+      }
+      throw new StudentLookupError('No se pudo conectar con la API universitaria.', 502);
+    }
+
+    if (!response.ok) {
+      console.error('UNHEVAL rechazó la actualización del teléfono.', { status: response.status });
+      throw new StudentLookupError('No se pudo actualizar el teléfono en la API universitaria.', 502);
+    }
+
+    const responseText = await response.text();
+    if (responseText) {
+      try {
+        const body = JSON.parse(responseText);
+        if (body && typeof body === 'object' && 'ok' in body && body.ok === false) {
+          throw new StudentLookupError('UNHEVAL no pudo actualizar el teléfono.', 502);
+        }
+      } catch (error) {
+        if (error instanceof StudentLookupError) throw error;
+      }
+    }
   } finally {
     clearTimeout(timeout);
   }

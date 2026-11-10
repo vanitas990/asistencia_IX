@@ -33,7 +33,7 @@ Completa `.env` con los valores del entorno:
 | `JWT_SECRET` | Secreto privado de al menos 32 caracteres para firmar tokens. |
 | `UNHEVAL_API_URL` | URL base del servicio universitario de consulta. |
 | `UNHEVAL_API_KEY` | Credencial del servicio universitario, si este la requiere. |
-| `EXPO_PUBLIC_API_URL` | URL HTTPS pública de la API; se incorpora en la compilación móvil. |
+| `EXPO_PUBLIC_API_URL` | URL HTTPS pública de la API para compilaciones de producción. |
 
 No agregues secretos a Git ni a variables `EXPO_PUBLIC_*`. La URL pública de la API no es un secreto. En producción, configura las variables sensibles en el servidor; para compilaciones EAS en la nube, define `EXPO_PUBLIC_API_URL` en **EAS > Project settings > Environment variables**, en el entorno que corresponda (`preview` o `production`).
 
@@ -101,7 +101,21 @@ El perfil `production` incrementa automáticamente el código de versión Androi
 3. Generar un APK nuevo con el perfil `preview` para pruebas en dispositivos. Cuando se apruebe, generar el `.aab` con el perfil `production` para Google Play.
 4. Confirmar que la API responda correctamente en `/health` y que las variables del backend estén configuradas en el VPS.
 
-La política de privacidad publicada está disponible en [vanitas990.github.io/asistencia_IX](https://vanitas990.github.io/asistencia_IX/).
+La política de privacidad publicada está disponible en [vanitas990.github.io/asistencia-ix-web](https://vanitas990.github.io/asistencia-ix-web/).
+
+## Desarrollo local
+
+La app y la API se ejecutan por separado. Desde la raíz del proyecto, abre dos terminales:
+
+```bash
+npm run start:server
+```
+
+```bash
+npm start
+```
+
+La API local usa el puerto `3000` y requiere `DATABASE_URL` y `JWT_SECRET` en `.env`. En modo desarrollo, la app usa automáticamente `http://localhost:3000/api` en web y la dirección del host de Metro en Android/iOS; no hace falta cambiar `EXPO_PUBLIC_API_URL`. Para probar en un dispositivo físico, inicia Expo en modo LAN y conecta el móvil y el equipo a la misma red Wi-Fi. Las compilaciones de producción usan `EXPO_PUBLIC_API_URL`.
 
 ## Comprobaciones locales
 

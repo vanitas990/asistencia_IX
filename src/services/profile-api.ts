@@ -4,8 +4,16 @@ import { perfilSchema } from '@/schemas/auth.schema';
 import { ApiRequestError } from '@/services/auth-api';
 import type { User } from '@/types';
 
-export type EditableProfile = Pick<User, 'nombre' | 'carrera'>
-  & Partial<Pick<User, 'facultad'>>;
+export type EditableProfile = Partial<Pick<
+  User,
+  | 'nombre'
+  | 'carrera'
+  | 'facultad'
+  | 'telefono'
+  | 'correo_institucional'
+  | 'correo_personal'
+  | 'correo_preferido'
+>>;
 
 async function parseProfileResponse(response: Response, fallbackMessage: string): Promise<User> {
   let body: unknown;
@@ -57,4 +65,17 @@ export async function updateProfile(
     body: JSON.stringify(profile),
   });
   return parseProfileResponse(response, 'No se pudo actualizar el perfil.');
+}
+
+export async function updateProfilePhone(
+  apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  dni: string,
+  telefono: string,
+): Promise<User> {
+  const response = await apiFetch('/api/perfiles/actualizar-telefono', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ dni, telefono }),
+  });
+  return parseProfileResponse(response, 'No se pudo actualizar el teléfono.');
 }

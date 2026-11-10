@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import type { LoginFormData, RegisterFormData } from '@/schemas/auth.schema';
 import { perfilSchema } from '@/schemas/auth.schema';
+import { getApiUrl } from '@/services/api';
 
 const apiResponseSchema = z.object({
   data: z.object({
@@ -46,7 +47,7 @@ export class ApiRequestError extends Error {
   }
 }
 
-const apiBaseUrl = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+const apiBaseUrl = getApiUrl();
 let accessToken: string | null = null;
 let refreshInProgress: Promise<RefreshedSession> | null = null;
 
@@ -63,7 +64,7 @@ async function postJson(path: string, payload: unknown): Promise<Response> {
     });
   } catch {
     throw new Error(
-      'No se pudo conectar con la API. Comprueba que el servidor esté activo y que EXPO_PUBLIC_API_URL sea accesible desde el dispositivo.',
+      'No se pudo conectar con la API. Iníciala con "npm run start:server" y comprueba que la URL configurada sea accesible desde este dispositivo.',
     );
   }
 }

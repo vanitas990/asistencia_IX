@@ -99,35 +99,6 @@ app.use((error, _request, response, next) => {
   response.status(500).json({ error: 'Ocurrió un error interno. Inténtalo de nuevo más tarde.' });
 });
 
-async function logDatabaseCapabilities() {
-  try {
-    const [rows] = await sql`
-      SELECT
-        role.rolsuper AS is_superuser,
-        role.rolbypassrls AS bypasses_rls,
-        relation.relrowsecurity AS profiles_rls_enabled,
-        relation.relforcerowsecurity AS profiles_force_rls,
-        (relation.relowner = role.oid) AS owns_profiles,
-        EXISTS (
-          SELECT 1
-          FROM information_schema.columns
-          WHERE table_schema = 'public'
-            AND table_name = 'perfiles'
-            AND column_name = 'password_hash'
-        ) AS profiles_has_password_hash
-      FROM pg_roles AS role
-      LEFT JOIN pg_class AS relation
-        ON relation.oid = to_regclass('public.perfiles')
-      WHERE role.rolname = current_user
-    `;
-
-    console.log('Database role/RLS/schema diagnostics:', rows ?? { status: 'role metadata unavailable' });
-  } catch (error) {
-    logDatabaseError(error, 'Database diagnostics failed:');
-  }
-}
-
 app.listen(numericPort, '0.0.0.0', () => {
-  console.log(`Asistencia IX API listening on port ${PORT}`);
-  void logDatabaseCapabilities();
+  console.info(`Asistencia IX API listening on port ${PORT}`);
 });

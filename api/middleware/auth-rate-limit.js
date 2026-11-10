@@ -8,7 +8,6 @@ const MAX_ATTEMPTS = 10;
 export function authRateLimit(action) {
   return async (request, response, next) => {
     try {
-      console.log(`Rate limit: checking ${action} request...`);
       const ipHash = createHash('sha256').update(request.ip ?? 'unknown').digest('hex');
       const rateLimitKey = `auth:${action}:${ipHash}`;
       const rows = await sql`
@@ -31,13 +30,11 @@ export function authRateLimit(action) {
       }
 
       if (rows[0].contador > MAX_ATTEMPTS) {
-        console.log(`Rate limit: rejecting ${action} request.`);
         return response.status(429).json({
           error: `Demasiados intentos. Vuelve a intentarlo en ${WINDOW_MINUTES} minutos.`,
         });
       }
 
-      console.log(`Rate limit: ${action} request allowed.`);
       return next();
     } catch (error) {
       console.error('Rate limit check failed:', {

@@ -15,6 +15,10 @@ const linkedProfileSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
   facultad: z.string().nullable(),
   carrera: z.string(),
+  correo_institucional: z.string().nullable().optional(),
+  correo_personal: z.string().nullable().optional(),
+  correo_preferido: z.enum(['institucional', 'personal']).optional(),
+  telefono: z.string().nullable().optional(),
 });
 
 const pendingRequestSchema = z.object({

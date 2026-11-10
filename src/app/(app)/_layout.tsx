@@ -16,10 +16,10 @@ export default function AppLayout() {
         sceneStyle: styles.scene,
         headerStyle: styles.header,
         headerTitleStyle: styles.headerTitle,
-        headerTintColor: colors.primary,
-        headerLeft: () => <DrawerToggleButton tintColor={colors.primary} />,
+        headerTintColor: colors.text,
+        headerLeft: () => <DrawerToggleButton tintColor={colors.text} />,
         drawerActiveTintColor: '#ffffff',
-        drawerInactiveTintColor: '#334155',
+        drawerInactiveTintColor: '#E0E0E0',
       }}>
       <Drawer.Screen
         name="home"
@@ -51,6 +51,6 @@ const styles = StyleSheet.create({
   drawer: { width: 310, backgroundColor: colors.surface },
   scene: { backgroundColor: colors.background },
   header: { backgroundColor: colors.background },
-  headerTitle: { color: colors.primary, fontFamily: fonts.display, fontSize: 16, letterSpacing: 1 },
-  brandMark: { color: colors.primary, fontFamily: fonts.body, fontSize: 19 },
+  headerTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 16, letterSpacing: 1 },
+  brandMark: { color: colors.text, fontFamily: fonts.body, fontSize: 19 },
 });

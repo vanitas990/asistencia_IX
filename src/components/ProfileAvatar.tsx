@@ -48,5 +48,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: colors.earthLight,
   },
-  initials: { color: colors.primary, fontFamily: fonts.display },
+  initials: { color: colors.text, fontFamily: fonts.display },
 });

@@ -142,7 +142,7 @@ export default function ScanScreen() {
   if (!permission) {
     return (
       <View style={styles.permissionContainer}>
-        <ActivityIndicator color="#2563eb" />
+        <ActivityIndicator color="#FFFFFF" />
         <Text style={styles.message}>Comprobando permiso de cámara...</Text>
       </View>
     );
@@ -219,11 +219,11 @@ export default function ScanScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0f172a' },
-  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 28, backgroundColor: '#f1f5f9' },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14, padding: 28, backgroundColor: 'transparent' },
   title: { color: '#ffffff', fontSize: 22, fontWeight: '700', textAlign: 'center' },
   message: { color: '#e2e8f0', fontSize: 15, textAlign: 'center' },
-  overlay: { flex: 1, alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingTop: 58, paddingBottom: 50, backgroundColor: '#0f172a66' },
+  overlay: { flex: 1, alignItems: 'center', justifyContent: 'space-between', padding: 24, paddingTop: 58, paddingBottom: 50, backgroundColor: 'rgba(10, 16, 23, 0.38)' },
   backButton: { alignSelf: 'flex-start', minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 },
   backText: { color: '#ffffff', fontSize: 17, fontWeight: '600' },
   instructions: { alignItems: 'center', gap: 8 },
@@ -231,12 +231,12 @@ const styles = StyleSheet.create({
   status: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   statusText: { color: '#ffffff', fontSize: 15 },
   bottomHint: { color: '#ffffff', fontSize: 13, textAlign: 'center' },
-  errorCard: { width: '100%', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, backgroundColor: '#ffffff' },
-  errorText: { color: '#b91c1c', fontSize: 14, textAlign: 'center' },
-  retryButton: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 10, backgroundColor: '#dbeafe' },
-  retryText: { color: '#1e3a8a', fontWeight: '700' },
-  primaryButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 20, borderRadius: 12, backgroundColor: '#2563eb' },
+  errorCard: { width: '100%', alignItems: 'center', gap: 10, borderRadius: 14, padding: 14, backgroundColor: 'rgba(12, 19, 28, 0.88)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)' },
+  errorText: { color: '#FFB4AB', fontSize: 14, textAlign: 'center' },
+  retryButton: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 18, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.14)' },
+  retryText: { color: '#FFFFFF', fontWeight: '700' },
+  primaryButton: { minHeight: 48, justifyContent: 'center', paddingHorizontal: 20, borderRadius: 12, backgroundColor: '#344D41' },
   primaryButtonText: { color: '#ffffff', fontWeight: '700' },
   cancelButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 18 },
-  cancelButtonText: { color: '#334155', fontWeight: '600' },
+  cancelButtonText: { color: '#FFFFFF', fontWeight: '600' },
 });

@@ -84,7 +84,7 @@ export default function AttendancesScreen() {
         <RefreshControl
           refreshing={isLoading}
           onRefresh={() => void loadAttendance(true)}
-          tintColor={colors.primary}
+          tintColor={colors.text}
         />
       }
       ListHeaderComponent={(
@@ -96,7 +96,7 @@ export default function AttendancesScreen() {
               ? 'Asistencias de hoy (hora de Perú) · Actualización automática cada 15 segundos.'
               : 'Tu historial de entradas y salidas.'}
           </Text>
-          {isLoading && <ActivityIndicator color={colors.primary} style={styles.loader} />}
+          {isLoading && <ActivityIndicator color={colors.text} style={styles.loader} />}
         </View>
       )}
       renderItem={({ item }) => {
@@ -155,6 +155,6 @@ const styles = StyleSheet.create({
   entryText: { color: colors.success },
   exitText: { color: colors.earth },
   emptyState: { alignItems: 'center', gap: 8, paddingVertical: 20 },
-  emptyIcon: { color: '#94a3b8', fontSize: 32 },
+  emptyIcon: { color: '#E0E0E0', fontSize: 32 },
   empty: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
 });

@@ -67,7 +67,7 @@ Los roles principales son `alumno` y `supervisor`. La interfaz muestra opciones 
 4. El backend valida la estructura de la respuesta, confirma que el DNI corresponda a un estudiante y devuelve los datos normalizados.
 5. El registro vuelve a validar el payload, genera un UUID de autenticación, hashea la contraseña con Argon2id e inserta el perfil. El DNI es único.
 
-El alumno debe aceptar las políticas de privacidad en el flujo de registro. La ruta de política abre `https://vanitas990.github.io/asistencia_IX/index.html` usando `Linking`.
+El alumno debe aceptar las políticas de privacidad en el flujo de registro. La ruta de política abre `https://vanitas990.github.io/asistencia-ix-web/` usando `Linking`.
 
 ### 4.3 Inicio de sesión y sesión persistente
 

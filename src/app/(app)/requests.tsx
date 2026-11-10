@@ -53,7 +53,7 @@ export default function RequestsScreen() {
 
         {notice && <Text style={styles.notice}>{notice}</Text>}
         {isLoading ? (
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={colors.text} />
         ) : !hasLoadedRequests ? null : requests.length ? (
           requests.map((request) => (
             <View key={request.id} style={styles.requestCard}>
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   requestName: { color: colors.text, fontFamily: fonts.display, fontSize: 16 },
   requestMeta: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 13 },
   button: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 16, borderRadius: 12, backgroundColor: colors.primary, ...cardElevation },
-  buttonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 14 },
+  buttonText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 14 },
   empty: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14, paddingVertical: 12 },
   pressed: { opacity: 0.82 },
   disabled: { opacity: 0.55 },

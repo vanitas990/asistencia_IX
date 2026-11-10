@@ -1,45 +1,79 @@
+import { BlurView } from 'expo-blur';
 import { Link, router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
+  Alert,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
-  TouchableOpacity,
   View,
 } from 'react-native';
+import { z } from 'zod';
 
+import { FondoBlurContext } from '@/components/FondoAnimado';
 import { useAuth } from '@/context/AuthContext';
-import { registerSchema, type RegisterFormData } from '@/schemas/auth.schema';
-import { consultStudentByDni } from '@/services/student-api';
-import type { UserRole } from '@/types';
-import { cardElevation, colors, fonts } from '@/theme';
+import type { RegisterFormData } from '@/schemas/auth.schema';
+import { fonts } from '@/theme';
 
-const emptyForm: RegisterFormData = {
+const manualRegistrationSchema = z.object({
+  dni: z.string().regex(/^\d{8}$/, 'El DNI debe tener exactamente 8 dígitos.'),
+  nombre: z.string().trim().min(1, 'Ingresa tus nombres y apellidos completos.').max(150),
+  facultad: z.string().trim().min(1, 'Ingresa tu facultad.').max(150),
+  correo_institucional: z.union([
+    z.literal(''),
+    z.string().trim().email('Ingresa un correo institucional válido.').max(254),
+  ]),
+  correo_personal: z.union([
+    z.literal(''),
+    z.string().trim().email('Ingresa un correo personal válido.').max(254),
+  ]),
+  telefono: z.string().trim().min(7, 'Ingresa un teléfono válido.').max(20),
+});
+
+type ManualRegistrationForm = z.infer<typeof manualRegistrationSchema>;
+type RegistrationRole = 'alumno' | 'supervisor';
+
+const emptyForm: ManualRegistrationForm = {
   dni: '',
   nombre: '',
   facultad: '',
-  carrera: '',
-  password: '',
-  rol: 'alumno',
+  correo_institucional: '',
+  correo_personal: '',
+  telefono: '',
 };
 
+const fields: {
+  name: 'dni' | 'nombre' | 'facultad' | 'telefono';
+  label: string;
+  placeholder: string;
+  keyboardType: 'default' | 'number-pad' | 'email-address' | 'phone-pad';
+  autoCapitalize: 'none' | 'words';
+  maxLength: number;
+}[] = [
+  { name: 'dni', label: 'DNI', placeholder: 'DNI de 8 dígitos', keyboardType: 'number-pad', autoCapitalize: 'none', maxLength: 8 },
+  { name: 'nombre', label: 'Nombres y Apellidos', placeholder: 'Nombres y Apellidos completos', keyboardType: 'default', autoCapitalize: 'words', maxLength: 150 },
+  { name: 'facultad', label: 'Facultad', placeholder: 'Nombre de la facultad', keyboardType: 'default', autoCapitalize: 'words', maxLength: 150 },
+  { name: 'telefono', label: 'Teléfono', placeholder: 'Número de celular', keyboardType: 'phone-pad', autoCapitalize: 'none', maxLength: 20 },
+];
+
 export default function RegisterScreen() {
-  const { register, authError, clearAuthError, isLoading, user } = useAuth();
+  const { isLoading, user, register } = useAuth();
+  const blurTarget = useContext(FondoBlurContext);
   const userId = user?.id;
   const [form, setForm] = useState(emptyForm);
+  const [role, setRole] = useState<RegistrationRole>('alumno');
+  const [correoPreferido, setCorreoPreferido] = useState<'institucional' | 'personal'>('institucional');
+  const [password, setPassword] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
+  const [isVerificationCodeSent, setIsVerificationCodeSent] = useState(false);
+  const [isVerificationCodeVerified, setIsVerificationCodeVerified] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [isConsultingStudent, setIsConsultingStudent] = useState(false);
-  const [studentDataDni, setStudentDataDni] = useState<string | null>(null);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
-  const studentLookupRequest = useRef(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (!isLoading && userId) {
@@ -47,104 +81,110 @@ export default function RegisterScreen() {
     }
   }, [isLoading, userId]);
 
-  function updateField<K extends keyof RegisterFormData>(field: K, value: RegisterFormData[K]) {
-    if (field === 'dni' && typeof value === 'string') {
-      studentLookupRequest.current += 1;
-      setIsConsultingStudent(false);
-      setStudentDataDni(null);
-      setForm((current) => ({
-        ...current,
-        dni: value,
-        ...(current.rol === 'alumno'
-          ? { nombre: '', facultad: '', carrera: '' }
-          : {}),
-      }));
-      setFormError(null);
-      clearAuthError();
-      if (form.rol === 'alumno' && /^\d{8}$/.test(value)) {
-        void handleConsultStudent(value);
-      }
-      return;
-    }
-
+  function updateField(field: keyof ManualRegistrationForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+    if (field === 'correo_personal') {
+      setIsVerificationCodeSent(false);
+      setIsVerificationCodeVerified(false);
+      setVerificationCode('');
+    }
     setFormError(null);
-    clearAuthError();
   }
 
-  async function handleConsultStudent(dni = form.dni) {
-    if (!/^\d{8}$/.test(dni)) {
-      setFormError('Ingresa un DNI de 8 dígitos para consultar los datos.');
+  function showMessage(title: string, message: string) {
+    if (Platform.OS === 'web') {
+      globalThis.alert(`${title}\n\n${message}`);
+      return;
+    }
+    Alert.alert(title, message);
+  }
+
+  function sendVerificationCode() {
+    const emailResult = z.string().email('Ingresa un correo válido.').safeParse(form.correo_personal.trim());
+    if (!emailResult.success) {
+      setFormError(emailResult.error.issues[0]?.message ?? 'Ingresa un correo válido.');
       return;
     }
 
-    const requestId = ++studentLookupRequest.current;
-    setIsConsultingStudent(true);
+    // TODO: Conectar con el endpoint de envío de códigos de correo
+    setIsVerificationCodeSent(true);
+    setIsVerificationCodeVerified(false);
+    setVerificationCode('');
     setFormError(null);
-    setStudentDataDni(null);
-    try {
-      const student = await consultStudentByDni(dni);
-      if (requestId !== studentLookupRequest.current) return;
-      setForm((current) => current.dni === dni
-        ? {
-          ...current,
-          nombre: student.nombre,
-          facultad: student.facultad,
-          carrera: student.carrera,
-        }
-        : current);
-      setStudentDataDni(dni);
-    } catch (lookupError) {
-      if (requestId === studentLookupRequest.current) {
-        setStudentDataDni(null);
-        setFormError(lookupError instanceof Error ? lookupError.message : 'No se pudieron consultar los datos.');
-      }
-    } finally {
-      if (requestId === studentLookupRequest.current) {
-        setIsConsultingStudent(false);
-      }
+    showMessage('Verificación', `Código enviado a ${emailResult.data} (Simulación)`);
+  }
+
+  function verifyEmailCode() {
+    if (!/^\d{6}$/.test(verificationCode)) {
+      setFormError('Ingresa el código de verificación de 6 dígitos.');
+      return;
     }
+
+    // TODO: Conectar con el endpoint de verificación de códigos de correo
+    setIsVerificationCodeVerified(true);
+    setFormError(null);
+    showMessage('Verificación', 'Código verificado (Simulación).');
   }
 
   async function handleSubmit() {
+    if (isSubmitting) return;
+
     if (!acceptedPolicy) {
       setFormError('Debes aceptar las Políticas y Privacidad para crear tu cuenta.');
       return;
     }
 
-    if (form.rol === 'alumno' && studentDataDni !== form.dni) {
-      setFormError('Consulta el DNI para cargar los datos del alumno antes de crear la cuenta.');
-      return;
-    }
-
-    const result = registerSchema.safeParse(form satisfies RegisterFormData);
+    const result = manualRegistrationSchema.safeParse(form);
     if (!result.success) {
       setFormError(result.error.issues[0]?.message ?? 'Revisa los datos ingresados.');
       return;
     }
 
-    setFormError(null);
-    clearAuthError();
+    if (role === 'alumno' && !form.correo_institucional.trim() && !form.correo_personal.trim()) {
+      setFormError('Ingresa al menos un correo electrónico.');
+      return;
+    }
+    if (role === 'alumno'
+      && (correoPreferido === 'institucional'
+        ? !form.correo_institucional.trim()
+        : !form.correo_personal.trim())) {
+      setFormError('Selecciona como preferido un correo que hayas ingresado.');
+      return;
+    }
+    if (role === 'supervisor' && password.length < 6) {
+      setFormError('La contraseña del supervisor debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (role === 'supervisor' && !isVerificationCodeSent) {
+      setFormError('Envía primero el código de verificación al correo del supervisor.');
+      return;
+    }
+    if (role === 'supervisor' && !isVerificationCodeVerified) {
+      setFormError('Verifica el código de correo antes de crear la cuenta.');
+      return;
+    }
+    if (role === 'supervisor') {
+      setFormError('La verificación de correo aún es una simulación. El registro de supervisores no está disponible.');
+      return;
+    }
+
+    const registrationPayload: RegisterFormData = {
+      ...result.data,
+      carrera: 'Por asignar',
+      correo_institucional: result.data.correo_institucional || null,
+      correo_personal: result.data.correo_personal || null,
+      correo_preferido: correoPreferido,
+      origen_datos: 'manual',
+      password: result.data.dni,
+      rol: role,
+    };
+
     setIsSubmitting(true);
     try {
-      let payload: RegisterFormData;
-      if (result.data.rol === 'supervisor') {
-        const { facultad: _facultad, ...supervisorData } = result.data;
-        payload = supervisorData;
-        console.log('Payload Supervisor (datos sensibles redactados):', JSON.stringify({
-          ...supervisorData,
-          dni: `******${supervisorData.dni.slice(-2)}`,
-          nombre: '[REDACTED]',
-          carrera: supervisorData.carrera ? '[PRESENTE]' : '[VACÍO]',
-          password: '[REDACTED]',
-        }));
-      } else {
-        payload = result.data;
-      }
-      await register(payload);
+      await register(registrationPayload);
       router.replace('/(app)/home');
-    } catch {
-      // AuthContext exposes the mock storage error for display.
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'No se pudo crear la cuenta. Inténtalo nuevamente.');
     } finally {
       setIsSubmitting(false);
     }
@@ -153,267 +193,333 @@ export default function RegisterScreen() {
   if (isLoading || userId) {
     return (
       <View style={styles.loading}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <ActivityIndicator size="large" color="#FFFFFF" />
       </View>
     );
   }
-
-  function renderInput(
-    field: Exclude<keyof RegisterFormData, 'rol'>,
-    label: string,
-    placeholder: string,
-    secureTextEntry = false,
-    editable = true,
-  ) {
-    return (
-      <View style={styles.field} key={field}>
-        <Text style={styles.label}>{label}</Text>
-        {field === 'password' ? (
-          <View style={styles.passwordInput}>
-            <TextInput
-              autoCapitalize="none"
-              onChangeText={(value) => updateField(field, value)}
-              editable={editable}
-              placeholder={placeholder}
-              placeholderTextColor="#94a3b8"
-              secureTextEntry={!showPassword}
-              style={styles.passwordTextInput}
-              value={form.password}
-            />
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-              onPress={() => setShowPassword((current) => !current)}
-              style={styles.passwordVisibilityButton}>
-              <SymbolView
-                name={{
-                  ios: showPassword ? 'eye.slash' : 'eye',
-                  android: showPassword ? 'visibility_off' : 'visibility',
-                  web: showPassword ? 'visibility_off' : 'visibility',
-                }}
-                size={22}
-                tintColor={colors.primary}
-              />
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <TextInput
-            autoCapitalize={field === 'dni' ? 'none' : 'words'}
-            onChangeText={(value) => updateField(field, value)}
-            editable={editable}
-            keyboardType={field === 'dni' ? 'number-pad' : 'default'}
-            maxLength={field === 'dni' ? 8 : undefined}
-            placeholder={placeholder}
-            placeholderTextColor="#94a3b8"
-            style={[styles.input, !editable && styles.readOnlyInput]}
-            value={form[field] ?? ''}
-          />
-        )}
-      </View>
-    );
-  }
-
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView
+      style={styles.container}
+      contentContainerStyle={[styles.scrollContent, styles.keyboardContent]}
+      enableOnAndroid
+      extraScrollHeight={20}
+      keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
-          <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
-          <Text style={styles.title}>Crear cuenta</Text>
-          <Text style={styles.subtitle}>Completa tus datos para comenzar.</Text>
-
-          {renderInput('dni', 'DNI', 'DNI de 8 dígitos')}
-          {form.rol === 'alumno' && (
-            <Pressable
-              accessibilityRole="button"
-              disabled={isConsultingStudent}
-              onPress={() => void handleConsultStudent()}
-              style={({ pressed }) => [styles.lookupButton, pressed && styles.pressed, isConsultingStudent && styles.disabled]}>
-              {isConsultingStudent ? (
-                <ActivityIndicator color={colors.primary} />
-              ) : (
-                <Text style={styles.lookupButtonText}>
-                  {studentDataDni === form.dni ? 'Consultar nuevamente' : 'Consultar datos universitarios'}
-                </Text>
-              )}
-            </Pressable>
-          )}
-          {renderInput('nombre', 'Nombres y Apellidos', 'Escribe tus nombres y apellidos', false, form.rol === 'supervisor')}
-          {form.rol === 'alumno' ? (
-            <>
-              {renderInput('facultad', 'Facultad', 'Nombre de la facultad', false, false)}
-              {renderInput('carrera', 'Carrera', 'Nombre de la carrera', false, false)}
-            </>
-          ) : (
-            renderInput('carrera', 'Especialidad / Área', 'Tu especialidad o área')
-          )}
-          {renderInput('password', 'Contraseña', 'Mínimo 6 caracteres', true)}
-
-          <Text style={styles.label}>Tipo de cuenta</Text>
-          <View style={styles.roleOptions}>
-            {(['supervisor', 'alumno'] as const).map((role: UserRole) => {
-              const selected = form.rol === role;
-              return (
+          <BlurView
+            blurMethod={Platform.OS === 'android' ? 'dimezisBlurView' : undefined}
+            blurTarget={Platform.OS === 'android' ? blurTarget ?? undefined : undefined}
+            intensity={80}
+            pointerEvents="none"
+            style={[styles.cardBlur, Platform.OS === 'web' && styles.webCardBlur]}
+            tint="dark"
+          />
+          <View style={styles.cardContent}>
+            <Text style={styles.eyebrow}>ASISTENCIA IX</Text>
+            <View accessibilityRole="tablist" style={styles.roleSelector}>
+              {(['alumno', 'supervisor'] as const).map((nextRole) => (
                 <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  key={role}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: role === nextRole }}
+                  key={nextRole}
                   onPress={() => {
-                    const currentDni = form.dni;
-                    studentLookupRequest.current += 1;
-                    setIsConsultingStudent(false);
-                    setStudentDataDni(null);
-                    setForm((current) => ({
-                      ...current,
-                      rol: role,
-                      nombre: role === 'alumno' ? '' : current.nombre,
-                      facultad: '',
-                      carrera: role === 'alumno' ? '' : current.carrera,
-                    }));
+                    setRole(nextRole);
                     setFormError(null);
-                    clearAuthError();
-                    if (role === 'alumno' && /^\d{8}$/.test(currentDni)) {
-                      void handleConsultStudent(currentDni);
-                    }
+                    setIsVerificationCodeSent(false);
+                    setIsVerificationCodeVerified(false);
+                    setVerificationCode('');
                   }}
-                  style={[styles.roleButton, selected && styles.roleButtonSelected]}>
-                  <Text style={[styles.roleText, selected && styles.roleTextSelected]}>
-                    {role === 'supervisor' ? 'Supervisor' : 'Alumno'}
+                  style={styles.roleOption}>
+                  <Text style={[styles.roleText, role === nextRole && styles.roleTextActive]}>
+                    {nextRole === 'alumno' ? 'Alumno' : 'Supervisor'}
+                  </Text>
+                  <View
+                    style={[
+                      styles.roleUnderline,
+                      role === nextRole && styles.roleUnderlineActive,
+                    ]}
+                  />
+                </Pressable>
+              ))}
+            </View>
+            <Text style={styles.title}>Crear cuenta</Text>
+            <Text style={styles.subtitle}>Completa tus datos para comenzar.</Text>
+
+            {fields.map((field) => (
+              <View key={field.name} style={styles.field}>
+                <Text style={styles.label}>
+                  {field.name === 'facultad' && role === 'supervisor'
+                    ? 'Especialidad / Área'
+                    : field.label}
+                </Text>
+                <TextInput
+                  accessibilityLabel={field.label}
+                  autoCapitalize={field.autoCapitalize}
+                  autoCorrect={field.name === 'nombre' || field.name === 'facultad'}
+                  keyboardType={field.keyboardType}
+                  maxLength={field.maxLength}
+                  onChangeText={(value) => updateField(
+                    field.name,
+                    field.name === 'dni' ? value.replace(/\D/g, '') : value,
+                  )}
+                  placeholder={
+                    field.name === 'facultad' && role === 'supervisor'
+                      ? 'Ej. Sistemas, Administración, etc.'
+                      : field.placeholder
+                  }
+                  placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                  style={styles.input}
+                  value={form[field.name]}
+                />
+              </View>
+            ))}
+
+            {role === 'alumno' && (
+              <>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Correo Institucional</Text>
+                  <TextInput
+                    accessibilityLabel="Correo Institucional"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    maxLength={254}
+                    onChangeText={(value) => updateField('correo_institucional', value)}
+                    placeholder="correo@unheval.edu.pe"
+                    placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                    style={styles.input}
+                    value={form.correo_institucional}
+                  />
+                  <Text style={styles.fieldHint}>(Sugerencia: @unheval.edu.pe)</Text>
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Correo Personal</Text>
+                  <TextInput
+                    accessibilityLabel="Correo Personal"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    keyboardType="email-address"
+                    maxLength={254}
+                    onChangeText={(value) => updateField('correo_personal', value)}
+                    placeholder="correo@ejemplo.com"
+                    placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                    style={styles.input}
+                    value={form.correo_personal}
+                  />
+                </View>
+                <View style={styles.field}>
+                  <Text style={styles.label}>Correo preferido para contacto</Text>
+                  <View accessibilityRole="radiogroup" style={styles.emailPreferenceOptions}>
+                    {(['institucional', 'personal'] as const).map((preference) => (
+                      <Pressable
+                        accessibilityRole="radio"
+                        accessibilityState={{ checked: correoPreferido === preference }}
+                        key={preference}
+                        onPress={() => setCorreoPreferido(preference)}
+                        style={[
+                          styles.emailPreferenceOption,
+                          correoPreferido === preference && styles.emailPreferenceOptionSelected,
+                        ]}>
+                        <Text style={styles.emailPreferenceText}>
+                          {preference === 'institucional' ? 'Institucional' : 'Personal'}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </>
+            )}
+
+            {role === 'supervisor' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Correo de Contacto</Text>
+                <TextInput
+                  accessibilityLabel="Correo de Contacto"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="email-address"
+                  maxLength={254}
+                  onChangeText={(value) => updateField('correo_personal', value)}
+                  placeholder="correo@ejemplo.com"
+                  placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                  style={styles.input}
+                  value={form.correo_personal}
+                />
+              </View>
+            )}
+
+            {role === 'supervisor' && (
+              <View style={styles.field}>
+                <Text style={styles.label}>Contraseña</Text>
+                <TextInput
+                  accessibilityLabel="Contraseña"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setPassword(value);
+                    setFormError(null);
+                  }}
+                  placeholder="Mínimo 6 caracteres"
+                  placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                  secureTextEntry
+                  style={styles.input}
+                  value={password}
+                />
+              </View>
+            )}
+
+            {role === 'supervisor' && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={sendVerificationCode}
+                  style={({ pressed }) => [styles.verificationButton, pressed && styles.pressed]}>
+                  <Text style={styles.verificationButtonText}>
+                    {isVerificationCodeSent ? 'Reenviar código de verificación' : 'Enviar código de verificación'}
                   </Text>
                 </Pressable>
-              );
-            })}
-          </View>
+                {isVerificationCodeSent && (
+                  <View style={styles.field}>
+                    <Text style={styles.label}>Ingresar código de 6 dígitos</Text>
+                    <TextInput
+                      accessibilityLabel="Ingresar código de 6 dígitos"
+                      autoCapitalize="none"
+                      keyboardType="number-pad"
+                      maxLength={6}
+                      onChangeText={(value) => {
+                        setVerificationCode(value.replace(/\D/g, ''));
+                        setIsVerificationCodeVerified(false);
+                        setFormError(null);
+                      }}
+                      placeholder="000000"
+                      placeholderTextColor="rgba(255, 255, 255, 0.72)"
+                      style={styles.input}
+                      value={verificationCode}
+                    />
+                  </View>
+                )}
+                {isVerificationCodeSent && (
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isVerificationCodeVerified}
+                    onPress={verifyEmailCode}
+                    style={({ pressed }) => [
+                      styles.verificationButton,
+                      pressed && styles.pressed,
+                      isVerificationCodeVerified && styles.disabled,
+                    ]}>
+                    <Text style={styles.verificationButtonText}>
+                      {isVerificationCodeVerified ? 'Correo verificado' : 'Verificar código'}
+                    </Text>
+                  </Pressable>
+                )}
+              </>
+            )}
 
-          {(formError || authError) && <Text style={styles.error}>{formError ?? authError}</Text>}
+            {formError && (
+              <Text accessibilityRole="alert" style={styles.error}>
+                {formError}
+              </Text>
+            )}
 
-          <View style={styles.consentRow}>
+            <View style={styles.consentRow}>
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityLabel="Acepto las Políticas y Privacidad"
+                accessibilityState={{ checked: acceptedPolicy }}
+                onPress={() => {
+                  setAcceptedPolicy((current) => !current);
+                  setFormError(null);
+                }}
+                style={({ pressed }) => [
+                  styles.checkbox,
+                  acceptedPolicy && styles.checkboxChecked,
+                  pressed && styles.pressed,
+                ]}>
+                {acceptedPolicy && <Text style={styles.checkboxCheck}>✓</Text>}
+              </Pressable>
+              <View style={styles.consentText}>
+                <Text style={styles.consentLabel}>Acepto las </Text>
+                <Link href="/politicas" style={styles.policyLink}>
+                  Políticas y Privacidad
+                </Link>
+              </View>
+            </View>
+
             <Pressable
-              accessibilityRole="checkbox"
-              accessibilityLabel="Acepto las Políticas y Privacidad"
-              accessibilityState={{ checked: acceptedPolicy }}
-              onPress={() => {
-                setAcceptedPolicy((current) => !current);
-                setFormError(null);
-              }}
-              style={({ pressed }) => [styles.checkbox, acceptedPolicy && styles.checkboxChecked, pressed && styles.pressed]}>
-              {acceptedPolicy && <Text style={styles.checkboxCheck}>✓</Text>}
+              accessibilityRole="button"
+              disabled={!acceptedPolicy || isSubmitting}
+              onPress={() => void handleSubmit()}
+              style={({ pressed }) => [
+                styles.button,
+                pressed && styles.pressed,
+                (!acceptedPolicy || isSubmitting) && styles.disabled,
+              ]}>
+              <Text style={styles.buttonText}>
+                {isSubmitting ? 'Creando cuenta...' : 'Crear cuenta'}
+              </Text>
             </Pressable>
-            <View style={styles.consentText}>
-              <Text style={styles.consentLabel}>Acepto las </Text>
-              <Link href="/politicas" style={styles.policyLink}>
-                Políticas y Privacidad
+
+            <View style={styles.footer}>
+              <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
+              <Link href="/(auth)/login" style={styles.link}>
+                Iniciar sesión
               </Link>
             </View>
           </View>
-
-          <Pressable
-            accessibilityRole="button"
-            disabled={isSubmitting || !acceptedPolicy}
-            onPress={() => void handleSubmit()}
-            style={({ pressed }) => [styles.button, pressed && styles.pressed, (isSubmitting || !acceptedPolicy) && styles.disabled]}>
-            {isSubmitting ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.buttonText}>Crear cuenta</Text>
-            )}
-          </Pressable>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>¿Ya tienes cuenta? </Text>
-            <Link href="/(auth)/login" style={styles.link}>
-              Iniciar sesión
-            </Link>
-          </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: 'transparent' },
   scrollContent: { flexGrow: 1, justifyContent: 'center', padding: 24 },
+  keyboardContent: { paddingBottom: 40 },
   card: {
+    position: 'relative',
     width: '100%',
     maxWidth: 440,
     alignSelf: 'center',
-    gap: 14,
-    padding: 22,
+    overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    ...cardElevation,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
   },
-  eyebrow: { color: colors.earth, fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 1.5 },
-  title: { color: colors.text, fontFamily: fonts.display, fontSize: 30 },
-  subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15, marginBottom: 8 },
+  cardBlur: {
+    ...StyleSheet.absoluteFill,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+    zIndex: 0,
+  },
+  webCardBlur: { opacity: 0.12 },
+  cardContent: { gap: 14, padding: 22, zIndex: 1 },
+  roleSelector: { flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 2 },
+  roleOption: { width: 120, alignItems: 'center', gap: 8 },
+  roleText: { color: '#D0D0D0', fontFamily: fonts.medium, fontSize: 14 },
+  roleTextActive: { color: '#FFFFFF', fontFamily: fonts.semibold },
+  roleUnderline: { height: 2, width: '100%', backgroundColor: 'transparent' },
+  roleUnderlineActive: { backgroundColor: '#FFFFFF' },
+  eyebrow: { color: '#D8C1A5', fontFamily: fonts.semibold, fontSize: 12, letterSpacing: 1.5 },
+  title: { color: '#FFFFFF', fontFamily: fonts.display, fontSize: 30 },
+  subtitle: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 15, marginBottom: 4 },
   field: { gap: 6 },
-  label: { color: colors.text, fontFamily: fonts.medium, fontSize: 14, marginTop: 4 },
+  fieldHint: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 11 },
+  label: { color: '#FFFFFF', fontFamily: fonts.medium, fontSize: 14, marginTop: 4 },
   input: {
     minHeight: 48,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(255, 255, 255, 0.28)',
     borderRadius: 12,
     paddingHorizontal: 14,
-    color: colors.text,
-    backgroundColor: colors.surfaceMuted,
+    color: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     fontFamily: fonts.body,
     fontSize: 16,
   },
-  passwordInput: {
-    minHeight: 48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingLeft: 14,
-    backgroundColor: colors.surfaceMuted,
-  },
-  passwordTextInput: {
-    minHeight: 46,
-    flex: 1,
-    paddingVertical: 0,
-    color: colors.text,
-    fontFamily: fonts.body,
-    fontSize: 16,
-  },
-  passwordVisibilityButton: {
-    minWidth: 48,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 10,
-  },
-  readOnlyInput: { opacity: 0.75 },
-  lookupButton: {
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  lookupButtonText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 14 },
-  roleOptions: { flexDirection: 'row', gap: 12 },
-  roleButton: {
-    minHeight: 48,
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-  },
-  roleButtonSelected: { borderColor: colors.primary, backgroundColor: colors.surfaceMuted },
-  roleText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14 },
-  roleTextSelected: { color: colors.primary },
-  error: { color: '#b91c1c', fontSize: 14 },
+  error: { color: '#FFB4AB', fontFamily: fonts.medium, fontSize: 13 },
   consentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 4 },
   checkbox: {
     width: 24,
@@ -421,29 +527,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: '#FFFFFF',
     borderRadius: 7,
-    backgroundColor: colors.surface,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
-  checkboxChecked: { backgroundColor: colors.primary },
-  checkboxCheck: { color: colors.surface, fontFamily: fonts.bold, fontSize: 16, lineHeight: 20 },
+  checkboxChecked: { backgroundColor: '#FFFFFF' },
+  checkboxCheck: { color: '#17211D', fontFamily: fonts.bold, fontSize: 16, lineHeight: 20 },
   consentText: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
-  consentLabel: { color: colors.text, fontFamily: fonts.body, fontSize: 13 },
-  policyLink: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 13, textDecorationLine: 'underline' },
+  consentLabel: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 13 },
+  policyLink: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 13, textDecorationLine: 'underline' },
   button: {
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginTop: 8,
-    ...cardElevation,
   },
-  buttonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 16 },
+  buttonText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 16 },
+  verificationButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.32)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  verificationButtonText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 13, textAlign: 'center' },
+  emailPreferenceOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  emailPreferenceOption: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.32)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  emailPreferenceOptionSelected: { borderColor: '#D8C1A5', backgroundColor: 'rgba(255, 255, 255, 0.16)' },
+  emailPreferenceText: { color: '#FFFFFF', fontFamily: fonts.medium, fontSize: 13 },
   pressed: { opacity: 0.85 },
-  disabled: { opacity: 0.48 },
+  disabled: { opacity: 0.58 },
   footer: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap', marginTop: 8 },
-  footerText: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14 },
-  link: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 14 },
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
+  footerText: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 14 },
+  link: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 14 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
 });

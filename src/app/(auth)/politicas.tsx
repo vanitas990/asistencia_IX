@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { cardElevation, colors, fonts } from '@/theme';
 
-const privacyPolicyUrl = 'https://vanitas990.github.io/asistencia_IX/index.html';
+const privacyPolicyUrl = 'https://vanitas990.github.io/asistencia-ix-web/';
 
 export default function PrivacyPolicyScreen() {
   const handleOpenPrivacy = useCallback(async () => {
@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   backButton: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
-  backText: { color: colors.primary, fontFamily: fonts.semibold, fontSize: 15 },
-  headerLabel: { color: colors.primary, fontFamily: fonts.display, fontSize: 13, letterSpacing: 0.8 },
+  backText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 15 },
+  headerLabel: { color: colors.text, fontFamily: fonts.display, fontSize: 13, letterSpacing: 0.8 },
   content: { flex: 1, justifyContent: 'center', padding: 20 },
   card: {
     width: '100%',
@@ -96,6 +96,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: colors.primary,
   },
-  openButtonText: { color: colors.surface, fontFamily: fonts.semibold, fontSize: 15 },
+  openButtonText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 15 },
   pressed: { opacity: 0.75 },
 });

@@ -106,7 +106,7 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
               label={item.label}
               icon={({ color }) => <Text style={[styles.menuIcon, { color }]}>{item.icon}</Text>}
               activeTintColor="#ffffff"
-              inactiveTintColor="#334155"
+              inactiveTintColor="#E0E0E0"
               activeBackgroundColor={colors.primary}
               onPress={() => props.navigation.navigate(item.name)}
               style={styles.menuItem}
@@ -130,7 +130,7 @@ export default function AppDrawerContent(props: DrawerContentComponentProps) {
           onPress={() => void handleSignOut()}
           style={({ pressed }) => [styles.logout, pressed && styles.pressed, isSigningOut && styles.disabled]}>
           {isSigningOut ? (
-            <ActivityIndicator color="#b91c1c" size="small" />
+            <ActivityIndicator color="#FFB4AB" size="small" />
           ) : (
             <>
               <Text style={styles.logoutIcon}>↪</Text>
@@ -149,27 +149,27 @@ const styles = StyleSheet.create({
   scrollContent: { paddingTop: 0 },
   profileHeader: {
     alignItems: 'flex-start',
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     paddingHorizontal: 24,
     paddingTop: 54,
     paddingBottom: 26,
   },
   avatar: { marginBottom: 14 },
   userName: { maxWidth: '100%', color: '#ffffff', fontFamily: fonts.display, fontSize: 19 },
-  userRole: { color: '#e5e2dc', fontFamily: fonts.body, fontSize: 14, marginTop: 4 },
+  userRole: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 14, marginTop: 4 },
   copyId: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8, paddingVertical: 4 },
   copyIdPressed: { opacity: 0.75 },
   userId: { color: '#ffffff', fontFamily: fonts.semibold, fontSize: 13 },
-  copyHint: { color: '#e5e2dc', fontFamily: fonts.body, fontSize: 11 },
+  copyHint: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 11 },
   menu: { paddingHorizontal: 12, paddingTop: 16 },
   menuItem: { borderRadius: 12, marginVertical: 3 },
   menuLabel: { fontFamily: fonts.medium, fontSize: 14, marginLeft: -14 },
   menuIcon: { width: 22, fontSize: 18, textAlign: 'center' },
   policyItem: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 18, marginVertical: 3, paddingHorizontal: 16, borderRadius: 12 },
-  policyItemPressed: { backgroundColor: '#f1f0ec' },
-  policyIcon: { width: 22, color: colors.primary, fontSize: 18, textAlign: 'center' },
-  policyLabel: { color: '#334155', fontFamily: fonts.medium, fontSize: 14 },
-  footer: { borderTopWidth: 1, borderTopColor: '#e2e8f0', padding: 16 },
+  policyItemPressed: { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
+  policyIcon: { width: 22, color: colors.text, fontSize: 18, textAlign: 'center' },
+  policyLabel: { color: '#FFFFFF', fontFamily: fonts.medium, fontSize: 14 },
+  footer: { borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.2)', padding: 16 },
   logout: {
     minHeight: 48,
     flexDirection: 'row',
@@ -178,8 +178,8 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
   },
-  logoutIcon: { color: '#b91c1c', fontSize: 20 },
-  logoutText: { color: '#b91c1c', fontSize: 15, fontWeight: '700' },
-  pressed: { backgroundColor: '#f1f5f9' },
+  logoutIcon: { color: '#FFB4AB', fontSize: 20 },
+  logoutText: { color: '#FFB4AB', fontSize: 15, fontWeight: '700' },
+  pressed: { backgroundColor: 'rgba(255, 255, 255, 0.1)' },
   disabled: { opacity: 0.6 },
 });

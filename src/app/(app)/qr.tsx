@@ -10,6 +10,10 @@ import { useAuth } from '@/context/AuthContext';
 import { generateQr, getAlumnoQr, regenerateQr } from '@/services/link-api';
 import { cardElevation, colors, fonts } from '@/theme';
 
+interface QrSvgHandle {
+  toDataURL: (callback: (base64: string) => void) => void;
+}
+
 export default function QrScreen() {
   const { apiFetch, user } = useAuth();
   const userRole = user?.rol;
@@ -20,6 +24,7 @@ export default function QrScreen() {
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(false);
   const qrCardRef = useRef<ViewShotRef | null>(null);
+  const qrSvgRef = useRef<QrSvgHandle | null>(null);
 
   const loadQr = useCallback(async (isActive: () => boolean = () => isMountedRef.current) => {
     if (isActive()) setError(null);
@@ -95,13 +100,38 @@ export default function QrScreen() {
   }
 
   async function handleSaveToGallery() {
-    if (Platform.OS === 'web') {
-      console.error('Guardar imágenes QR en la galería está disponible en builds nativas.');
-      return;
-    }
-
     setIsExporting(true);
     try {
+      if (Platform.OS === 'web') {
+        const qrSvg = qrSvgRef.current;
+        if (!token || !qrSvg) {
+          throw new Error('El código QR todavía no está listo para descargar.');
+        }
+
+        const base64 = await new Promise<string>((resolve, reject) => {
+          try {
+            qrSvg.toDataURL((data) => {
+              if (!data) {
+                reject(new Error('No se pudo generar la imagen del código QR.'));
+                return;
+              }
+              resolve(data);
+            });
+          } catch (error) {
+            reject(error);
+          }
+        });
+        const link = document.createElement('a');
+        link.href = base64.startsWith('data:image/png;base64,')
+          ? base64
+          : `data:image/png;base64,${base64}`;
+        link.download = 'mi_qr_asistencia.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
       let permission: Awaited<ReturnType<typeof MediaLibrary.requestPermissionsAsync>>;
       try {
         permission = await MediaLibrary.requestPermissionsAsync(true, ['photo']);
@@ -170,7 +200,15 @@ export default function QrScreen() {
         ) : token ? (
           <>
             <View style={styles.qrFrame}>
-              <QRCode value={token} size={240} color="#000000" backgroundColor="#FFFFFF" />
+              <QRCode
+                getRef={(node: QrSvgHandle | null) => {
+                  qrSvgRef.current = node;
+                }}
+                value={token}
+                size={240}
+                color="#000000"
+                backgroundColor="#FFFFFF"
+              />
             </View>
             <Text selectable style={styles.token}>{token}</Text>
             <Pressable
@@ -178,15 +216,19 @@ export default function QrScreen() {
               disabled={isExporting || isRegenerating}
               onPress={() => void handleSaveToGallery()}
               style={({ pressed }) => [styles.button, pressed && styles.pressed, isExporting && styles.disabled]}>
-              {isExporting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Guardar en Galería</Text>}
+              {isExporting
+                ? <ActivityIndicator color="#ffffff" />
+                : <Text style={styles.buttonText}>{Platform.OS === 'web' ? 'Descargar QR' : 'Guardar en Galería'}</Text>}
             </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              disabled={isExporting || isRegenerating}
-              onPress={() => void handleExportAndShare()}
-              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, (isExporting || isRegenerating) && styles.disabled]}>
-              {isExporting ? <ActivityIndicator color={colors.text} /> : <Text style={styles.secondaryButtonText}>Compartir</Text>}
-            </Pressable>
+            {Platform.OS !== 'web' && (
+              <Pressable
+                accessibilityRole="button"
+                disabled={isExporting || isRegenerating}
+                onPress={() => void handleExportAndShare()}
+                style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed, (isExporting || isRegenerating) && styles.disabled]}>
+                {isExporting ? <ActivityIndicator color={colors.text} /> : <Text style={styles.secondaryButtonText}>Compartir</Text>}
+              </Pressable>
+            )}
           </>
         ) : null}
 

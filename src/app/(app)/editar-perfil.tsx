@@ -1,9 +1,13 @@
-import { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { useEffect, useRef, useState } from 'react';
+import type { ComponentRef } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,10 +18,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/context/AuthContext';
+import { ApiRequestError } from '@/services/auth-api';
 import { cardElevation, colors, fonts } from '@/theme';
+import { issueSupervisorRecoveryCodes } from '@/services/profile-api';
 
 export default function EditProfileScreen() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, apiFetch } = useAuth();
+  const { focusPassword } = useLocalSearchParams<{ focusPassword?: string }>();
+  const passwordInputRef = useRef<ComponentRef<typeof TextInput>>(null);
   const [nombre, setNombre] = useState(user?.nombre ?? '');
   const [facultad, setFacultad] = useState(user?.facultad ?? '');
   const [carrera, setCarrera] = useState(user?.carrera ?? '');
@@ -25,9 +33,20 @@ export default function EditProfileScreen() {
   const [correoInstitucional, setCorreoInstitucional] = useState(user?.correo_institucional ?? '');
   const [correoPersonal, setCorreoPersonal] = useState(user?.correo_personal ?? '');
   const [correoPreferido, setCorreoPreferido] = useState(user?.correo_preferido ?? 'institucional');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratingRecoveryCodes, setIsGeneratingRecoveryCodes] = useState(false);
+  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+
+  useEffect(() => {
+    if (focusPassword === 'true') {
+      passwordInputRef.current?.focus();
+    }
+  }, [focusPassword]);
 
   function showMessage(title: string, message: string) {
     if (Platform.OS === 'web') {
@@ -37,15 +56,65 @@ export default function EditProfileScreen() {
     Alert.alert(title, message);
   }
 
-  function handleUpdatePassword() {
-    if (!password) {
-      showMessage('Contraseña requerida', 'Ingresa una nueva contraseña para continuar.');
+  async function handleUpdatePassword() {
+    if (!currentPassword) {
+      showMessage('Contraseña actual requerida', 'Ingresa tu contraseña temporal o actual para continuar.');
+      return;
+    }
+    if (password.length < 8) {
+      showMessage('Contraseña no válida', 'La nueva contraseña debe tener al menos 8 caracteres.');
       return;
     }
 
-    // TODO: Conectar con endpoint de actualización de contraseña
-    showMessage('Contraseña actualizada', 'La actualización de contraseña es una simulación.');
-    setPassword('');
+    setIsSaving(true);
+    try {
+      await updateProfile({ current_password: currentPassword, password });
+      setCurrentPassword('');
+      setPassword('');
+      showMessage('Contraseña actualizada', 'Tu contraseña se actualizó correctamente.');
+    } catch (error) {
+      console.error('No se pudo actualizar la contraseña.', error);
+      if (error instanceof ApiRequestError && error.status === 500) {
+        showMessage('No se pudo actualizar', error.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleGenerateRecoveryCodes() {
+    if (!currentPassword) {
+      setRecoveryError('Ingresa tu contraseña actual para generar códigos.');
+      return;
+    }
+    setRecoveryError(null);
+    setIsGeneratingRecoveryCodes(true);
+    try {
+      const codes = await issueSupervisorRecoveryCodes(apiFetch, currentPassword);
+      setRecoveryCodes(codes);
+      setCopyStatus('idle');
+    } catch (error) {
+      console.error('No se pudieron generar los códigos de recuperación.', error);
+      if (error instanceof ApiRequestError && error.status === 500) {
+        setRecoveryError(error.message);
+      }
+    } finally {
+      setIsGeneratingRecoveryCodes(false);
+    }
+  }
+
+  async function handleCopyRecoveryCodes() {
+    if (!recoveryCodes) return;
+    try {
+      await Clipboard.setStringAsync(recoveryCodes.join('\n'), {
+        android: { isSensitive: true },
+      });
+      setCopyStatus('copied');
+    } catch (error) {
+      console.error('No se pudieron copiar los códigos de recuperación.', error);
+      setCopyStatus('failed');
+      setRecoveryError('No se pudieron copiar. Guarda los códigos manualmente en un lugar seguro.');
+    }
   }
 
   async function handleSave() {
@@ -95,10 +164,9 @@ export default function EditProfileScreen() {
       showMessage('Perfil actualizado', 'Tus cambios se guardaron correctamente.');
     } catch (saveError) {
       console.error('No se pudo actualizar el perfil.', saveError);
-      showMessage(
-        'No se pudo actualizar',
-        saveError instanceof Error ? saveError.message : 'Ocurrió un error inesperado.',
-      );
+      if (saveError instanceof ApiRequestError && saveError.status === 500) {
+        showMessage('No se pudo actualizar', saveError.message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -252,14 +320,26 @@ export default function EditProfileScreen() {
             {user.rol === 'supervisor' && (
               <View style={styles.passwordSection}>
                 <Text style={styles.sectionTitle}>Cambiar Contraseña</Text>
+                <TextInput
+                  accessibilityLabel="Contraseña actual"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  onChangeText={setCurrentPassword}
+                  placeholder="Contraseña temporal o actual"
+                  placeholderTextColor={colors.textMuted}
+                  secureTextEntry
+                  style={styles.passwordInputField}
+                  value={currentPassword}
+                />
                 <View style={styles.passwordInput}>
                   <TextInput
                     accessibilityLabel="Nueva contraseña"
                     autoCapitalize="none"
                     autoCorrect={false}
                     onChangeText={setPassword}
-                    placeholder="********"
+                    placeholder="Mínimo 8 caracteres"
                     placeholderTextColor={colors.textMuted}
+                    ref={passwordInputRef}
                     secureTextEntry={!showPassword}
                     style={styles.passwordTextInput}
                     value={password}
@@ -278,14 +358,77 @@ export default function EditProfileScreen() {
                 </View>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={handleUpdatePassword}
-                  style={({ pressed }) => [styles.passwordButton, pressed && styles.pressed]}>
-                  <Text style={styles.passwordButtonText}>Actualizar Contraseña</Text>
+                  disabled={isSaving}
+                  onPress={() => void handleUpdatePassword()}
+                  style={({ pressed }) => [
+                    styles.passwordButton,
+                    pressed && styles.pressed,
+                    isSaving && styles.disabled,
+                  ]}>
+                  {isSaving
+                    ? <ActivityIndicator color="#17211D" />
+                    : <Text style={styles.passwordButtonText}>Actualizar Contraseña</Text>}
                 </Pressable>
+                <View style={styles.recoveryCodeSection}>
+                  <Text style={styles.sectionTitle}>Códigos de recuperación</Text>
+                  <Text style={styles.subtitle}>
+                    Generar nuevos códigos invalida los anteriores. Cada código se usa una sola vez.
+                  </Text>
+                  {recoveryError && (
+                    <Text accessibilityRole="alert" style={styles.recoveryError}>{recoveryError}</Text>
+                  )}
+                  <Pressable
+                    accessibilityRole="button"
+                    disabled={isSaving || isGeneratingRecoveryCodes}
+                    onPress={() => void handleGenerateRecoveryCodes()}
+                    style={({ pressed }) => [
+                      styles.recoveryButton,
+                      pressed && styles.pressed,
+                      (isSaving || isGeneratingRecoveryCodes) && styles.disabled,
+                    ]}>
+                    {isGeneratingRecoveryCodes
+                      ? <ActivityIndicator color={colors.text} />
+                      : <Text style={styles.recoveryButtonText}>Generar 3 códigos de emergencia</Text>}
+                  </Pressable>
+                </View>
               </View>
             )}
         </View>
       </KeyboardAwareScrollView>
+      <Modal
+        animationType="fade"
+        onRequestClose={() => setRecoveryCodes(null)}
+        transparent
+        visible={Boolean(recoveryCodes)}>
+        <View style={styles.recoveryOverlay}>
+          <View style={styles.recoveryCard}>
+            <Text style={styles.sectionTitle}>Guarda tus códigos de emergencia</Text>
+            <Text style={styles.subtitle}>
+              Se muestran una sola vez. Manténlos en un lugar seguro; cada código solo funciona una vez.
+            </Text>
+            {recoveryCodes?.map((code) => (
+              <Text key={code} selectable style={styles.recoveryCode}>{code}</Text>
+            ))}
+            {recoveryError && (
+              <Text accessibilityRole="alert" style={styles.recoveryError}>{recoveryError}</Text>
+            )}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void handleCopyRecoveryCodes()}
+              style={({ pressed }) => [styles.recoveryButton, pressed && styles.pressed]}>
+              <Text style={styles.recoveryButtonText}>
+                {copyStatus === 'copied' ? 'Códigos copiados' : 'Copiar los 3 códigos'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setRecoveryCodes(null)}
+              style={({ pressed }) => [styles.dismissButton, pressed && styles.pressed]}>
+              <Text style={styles.dismissButtonText}>Ya los guardé</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -356,9 +499,19 @@ const styles = StyleSheet.create({
   sectionTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 19 },
   passwordInput: { minHeight: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surfaceMuted },
   passwordTextInput: { minHeight: 48, flex: 1, color: colors.text, backgroundColor: 'transparent', fontFamily: fonts.body, fontSize: 15 },
+  passwordInputField: { minHeight: 48, paddingHorizontal: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 12, color: colors.text, backgroundColor: colors.surfaceMuted, fontFamily: fonts.body, fontSize: 15 },
   passwordVisibilityButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   passwordButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#FFFFFF' },
   passwordButtonText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 14 },
+  recoveryCodeSection: { gap: 10, paddingTop: 16, borderTopWidth: 1, borderTopColor: colors.border },
+  recoveryError: { color: colors.danger, fontFamily: fonts.medium, fontSize: 13 },
+  recoveryButton: { minHeight: 48, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.surfaceMuted },
+  recoveryButtonText: { color: colors.text, fontFamily: fonts.semibold, fontSize: 14, textAlign: 'center' },
+  recoveryOverlay: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.78)' },
+  recoveryCard: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 14, padding: 24, borderWidth: 1, borderColor: colors.border, borderRadius: 20, backgroundColor: 'rgba(22, 29, 37, 0.97)', ...cardElevation },
+  recoveryCode: { padding: 10, borderRadius: 10, color: colors.text, backgroundColor: colors.surfaceMuted, fontFamily: fonts.semibold, fontSize: 15, textAlign: 'center' },
+  dismissButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  dismissButtonText: { color: colors.textMuted, fontFamily: fonts.medium, fontSize: 14 },
   pressed: { opacity: 0.82 },
   disabled: { opacity: 0.6 },
 });

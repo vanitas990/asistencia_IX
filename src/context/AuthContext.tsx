@@ -22,6 +22,7 @@ import {
 import {
   updateProfile as updateProfileData,
   updateProfileAvatar,
+  confirmProfilePhone,
   updateProfilePhone as updateProfilePhoneData,
   type EditableProfile,
 } from '@/services/profile-api';
@@ -42,6 +43,7 @@ interface AuthContextValue {
   updateAvatar: (avatarUrl: string) => Promise<void>;
   updateProfile: (profile: EditableProfile) => Promise<void>;
   updatePhone: (telefono: string) => Promise<void>;
+  confirmPhone: () => Promise<void>;
   clearAuthError: () => void;
 }
 
@@ -248,6 +250,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(updatedUser);
   }, [apiFetch, user]);
 
+  const confirmPhone = useCallback(async () => {
+    const updatedUser = await confirmProfilePhone(apiFetch);
+    await writeStoredValue(USER_KEY, JSON.stringify(userForSecureStore(updatedUser)));
+    setUser(updatedUser);
+  }, [apiFetch]);
+
   const clearAuthError = useCallback(() => setAuthError(null), []);
 
   const value = useMemo(
@@ -262,9 +270,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       updateAvatar,
       updateProfile,
       updatePhone,
+      confirmPhone,
       clearAuthError,
     }),
-    [user, isLoading, authError, login, logout, register, apiFetch, updateAvatar, updateProfile, updatePhone, clearAuthError],
+    [user, isLoading, authError, login, logout, register, apiFetch, updateAvatar, updateProfile, updatePhone, confirmPhone, clearAuthError],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

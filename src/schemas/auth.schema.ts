@@ -82,6 +82,8 @@ export const perfilSchema = z.object({
   origen_datos: z.enum(['api', 'manual']).default('manual'),
   created_at: z.string(),
   avatar_url: z.string().nullable().default(null),
+  telefono_confirmado: z.boolean().default(false),
+  requiere_cambio_password: z.boolean().default(false),
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;

@@ -2,9 +2,11 @@ import { BlurView } from 'expo-blur';
 import { Link, router } from 'expo-router';
 import { useEffect, useState, useContext } from 'react';
 import { SymbolView } from 'expo-symbols';
+import * as Clipboard from 'expo-clipboard';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -16,7 +18,7 @@ import {
 
 import { FondoBlurContext } from '@/components/FondoAnimado';
 import { useAuth } from '@/context/AuthContext';
-import { ApiRequestError } from '@/services/auth-api';
+import { ApiRequestError, recoverSupervisorPassword } from '@/services/auth-api';
 import { loginSchema, type LoginFormData } from '@/schemas/auth.schema';
 import { fonts } from '@/theme';
 
@@ -32,6 +34,13 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [failedLoginAttempts, setFailedLoginAttempts] = useState(0);
+  const [isRecoveryModalVisible, setIsRecoveryModalVisible] = useState(false);
+  const [recoveryCode, setRecoveryCode] = useState('');
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [temporaryPassword, setTemporaryPassword] = useState<string | null>(null);
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
 
   useEffect(() => {
     if (!isLoading && userId) {
@@ -56,11 +65,15 @@ export default function LoginScreen() {
 
     try {
       await login({ dni, password: role === 'alumno' ? '' : password, rol: role });
+      setFailedLoginAttempts(0);
 
       // Si el backend dice "OK", entramos al Home
       router.replace('/(app)/home');
 
     } catch (error: unknown) {
+      if (role === 'supervisor' && error instanceof ApiRequestError && error.status === 401) {
+        setFailedLoginAttempts((attempts) => attempts + 1);
+      }
       // Si el alumno no aparece en Neon ni en UNHEVAL, puede continuar con el registro manual.
       if (error instanceof ApiRequestError && error.status === 404) {
         clearAuthError();
@@ -72,6 +85,53 @@ export default function LoginScreen() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  async function handleRecoverPassword() {
+    if (!/^\d{8}$/.test(dni)) {
+      setRecoveryError('Ingresa primero tu DNI de 8 dígitos.');
+      return;
+    }
+    if (!/^UNH-[A-F0-9]{24}$/i.test(recoveryCode)) {
+      setRecoveryError('Ingresa uno de tus códigos de recuperación completos.');
+      return;
+    }
+
+    setRecoveryError(null);
+    setIsRecovering(true);
+    try {
+      const newPassword = await recoverSupervisorPassword(dni, recoveryCode);
+      setTemporaryPassword(newPassword);
+      setPassword(newPassword);
+      setFailedLoginAttempts(0);
+      setCopyStatus('idle');
+    } catch (error) {
+      setRecoveryError(error instanceof Error ? error.message : 'No se pudo recuperar la contraseña.');
+    } finally {
+      setIsRecovering(false);
+    }
+  }
+
+  async function handleCopyTemporaryPassword() {
+    if (!temporaryPassword) return;
+    try {
+      await Clipboard.setStringAsync(temporaryPassword, {
+        android: { isSensitive: true },
+      });
+      setCopyStatus('copied');
+    } catch (error) {
+      console.error('No se pudo copiar la contraseña temporal.', error);
+      setCopyStatus('failed');
+      setRecoveryError('No se pudo copiar. Mantén pulsada la contraseña para seleccionarla.');
+    }
+  }
+
+  function closeRecoveryModal() {
+    setIsRecoveryModalVisible(false);
+    setRecoveryCode('');
+    setRecoveryError(null);
+    setTemporaryPassword(null);
+    setCopyStatus('idle');
   }
 
   if (isLoading || userId) {
@@ -199,10 +259,15 @@ export default function LoginScreen() {
                 )}
               </Pressable>
 
-              {role === 'supervisor' && (
-                <Link href="/(auth)/forgot-password" style={styles.forgotPasswordLink}>
-                  ¿Olvidaste tu contraseña?
-                </Link>
+              {role === 'supervisor' && failedLoginAttempts >= 3 && (
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => setIsRecoveryModalVisible(true)}
+                  style={({ pressed }) => [styles.forgotPasswordButton, pressed && styles.pressed]}>
+                  <Text style={styles.forgotPasswordLink}>
+                    Recuperar Acceso
+                  </Text>
+                </Pressable>
               )}
 
               <Text style={styles.supportText}>
@@ -218,6 +283,85 @@ export default function LoginScreen() {
             </View>
           </View>
         </View>
+      <Modal
+        animationType="fade"
+        onRequestClose={closeRecoveryModal}
+        transparent
+        visible={isRecoveryModalVisible}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.recoveryCard}>
+            <Text style={styles.recoveryTitle}>
+              {temporaryPassword ? 'Contraseña temporal' : 'Recuperar contraseña'}
+            </Text>
+            {temporaryPassword ? (
+              <>
+                <Text style={styles.recoveryDescription}>
+                  Usa esta contraseña para ingresar. Después tendrás que cambiarla en tu perfil.
+                </Text>
+                <Text selectable style={styles.temporaryPassword}>{temporaryPassword}</Text>
+                {recoveryError && (
+                  <Text accessibilityRole="alert" style={styles.error}>{recoveryError}</Text>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => void handleCopyTemporaryPassword()}
+                  style={({ pressed }) => [styles.recoveryPrimaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.recoveryPrimaryText}>
+                    {copyStatus === 'copied' ? 'Copiada' : 'Copiar contraseña'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={closeRecoveryModal}
+                  style={({ pressed }) => [styles.recoverySecondaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.recoverySecondaryText}>Volver al inicio de sesión</Text>
+                </Pressable>
+              </>
+            ) : (
+              <>
+                <Text style={styles.recoveryDescription}>
+                  Ingresa uno de tus códigos de recuperación. Cada código se puede usar una sola vez.
+                </Text>
+                <TextInput
+                  accessibilityLabel="Código de recuperación"
+                  autoCapitalize="characters"
+                  autoCorrect={false}
+                  onChangeText={(value) => {
+                    setRecoveryCode(value.toUpperCase().replace(/[^A-Z0-9-]/g, ''));
+                    setRecoveryError(null);
+                  }}
+                  placeholder="UNH-..."
+                  placeholderTextColor="rgba(255, 255, 255, 0.6)"
+                  style={styles.recoveryInput}
+                  value={recoveryCode}
+                />
+                {recoveryError && (
+                  <Text accessibilityRole="alert" style={styles.error}>{recoveryError}</Text>
+                )}
+                <Pressable
+                  accessibilityRole="button"
+                  disabled={isRecovering}
+                  onPress={() => void handleRecoverPassword()}
+                  style={({ pressed }) => [
+                    styles.recoveryPrimaryButton,
+                    pressed && styles.pressed,
+                    isRecovering && styles.disabled,
+                  ]}>
+                  {isRecovering
+                    ? <ActivityIndicator color="#17211D" />
+                    : <Text style={styles.recoveryPrimaryText}>Generar contraseña temporal</Text>}
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={closeRecoveryModal}
+                  style={({ pressed }) => [styles.recoverySecondaryButton, pressed && styles.pressed]}>
+                  <Text style={styles.recoverySecondaryText}>Cancelar</Text>
+                </Pressable>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
     </KeyboardAwareScrollView>
   );
 }
@@ -326,7 +470,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   buttonText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 16 },
+  forgotPasswordButton: { alignItems: 'center', paddingVertical: 6 },
   forgotPasswordLink: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 13, textAlign: 'center', textDecorationLine: 'underline' },
+  modalOverlay: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.76)' },
+  recoveryCard: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 16, padding: 24, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.24)', borderRadius: 20, backgroundColor: 'rgba(18, 24, 31, 0.96)' },
+  recoveryTitle: { color: '#FFFFFF', fontFamily: fonts.display, fontSize: 25, textAlign: 'center' },
+  recoveryDescription: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  recoveryInput: { minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.28)', borderRadius: 12, color: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.1)', fontFamily: fonts.medium, fontSize: 15 },
+  temporaryPassword: { padding: 14, borderRadius: 12, color: '#FFFFFF', backgroundColor: 'rgba(255, 255, 255, 0.1)', fontFamily: fonts.semibold, fontSize: 18, textAlign: 'center' },
+  recoveryPrimaryButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  recoveryPrimaryText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 14, textAlign: 'center' },
+  recoverySecondaryButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.24)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
+  recoverySecondaryText: { color: '#FFFFFF', fontFamily: fonts.medium, fontSize: 14 },
   supportText: { color: '#D0D0D0', fontFamily: fonts.body, fontSize: 11, textAlign: 'center' },
   registerRow: { flexDirection: 'row', justifyContent: 'center', flexWrap: 'wrap' },
   registerText: { color: '#E0E0E0', fontFamily: fonts.body, fontSize: 12 },

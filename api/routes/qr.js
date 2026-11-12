@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 
 import { sql } from '../db.js';
-import { authenticate, requireRole } from '../middleware/authenticate.js';
+import { authenticate, requirePasswordChangeComplete, requireRole } from '../middleware/authenticate.js';
 
 const router = Router();
 
@@ -40,7 +40,7 @@ router.get(
   },
 );
 
-router.use(authenticate, requireRole('supervisor'));
+router.use(authenticate, requirePasswordChangeComplete, requireRole('supervisor'));
 
 router.post('/generar', async (request, response, next) => {
   try {

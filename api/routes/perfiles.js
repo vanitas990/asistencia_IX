@@ -2,8 +2,13 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { sql } from '../db.js';
-import { authenticate, requireRole } from '../middleware/authenticate.js';
+import {
+  authenticate,
+  requirePasswordChangeComplete,
+  requireRole,
+} from '../middleware/authenticate.js';
 import { avatarDataUrlSchema, validateAvatarImage } from '../utils/avatar.js';
+import { hashPassword, verifyPassword } from '../utils/auth.js';
 import { StudentLookupError, updateUniversityStudentPhone } from '../utils/estudiantes.js';
 
 const router = Router();
@@ -18,7 +23,13 @@ const editProfileSchema = z.object({
   correo_institucional: z.string().trim().email().max(254).nullable().optional(),
   correo_personal: z.string().trim().email().max(254).nullable().optional(),
   correo_preferido: z.enum(['institucional', 'personal']).optional(),
-}).strict().refine((data) => Object.keys(data).length > 0);
+  current_password: z.string().min(1).max(128).optional(),
+  password: z.string().min(8).max(128).optional(),
+}).strict()
+  .refine((data) => Object.keys(data).length > 0)
+  .refine((data) => (data.password === undefined) === (data.current_password === undefined), {
+    message: 'La contraseña actual y la nueva contraseña son obligatorias para cambiarla.',
+  });
 const updatePhoneSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
   telefono: z.string().trim().regex(/^[+()\d\s-]{7,20}$/),
@@ -26,7 +37,7 @@ const updatePhoneSchema = z.object({
 
 router.use(authenticate);
 
-router.get('/yo', async (request, response, next) => {
+router.get('/yo', requirePasswordChangeComplete, async (request, response, next) => {
   try {
     const rows = await sql`
       SELECT
@@ -43,7 +54,9 @@ router.get('/yo', async (request, response, next) => {
         correo_preferido,
         origen_datos,
         created_at::text AS created_at,
-        avatar_url
+        avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado
       FROM perfiles
       WHERE auth_user_id = ${request.auth.authUserId}::uuid
       LIMIT 1
@@ -59,7 +72,7 @@ router.get('/yo', async (request, response, next) => {
   }
 });
 
-router.patch('/avatar', async (request, response, next) => {
+router.patch('/avatar', requirePasswordChangeComplete, async (request, response, next) => {
   const parsed = avatarSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ error: 'La imagen debe ser JPEG, PNG o WebP en formato Base64.' });
@@ -91,7 +104,9 @@ router.patch('/avatar', async (request, response, next) => {
         correo_preferido,
         origen_datos,
         created_at::text AS created_at,
-        avatar_url
+        avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado
     `;
     if (!rows[0]) {
       response.status(404).json({ error: 'No se encontró el perfil.' });
@@ -112,7 +127,14 @@ router.put('/editar', async (request, response, next) => {
   }
   try {
     const currentRows = await sql`
-      SELECT rol, origen_datos, correo_institucional, correo_personal, correo_preferido
+      SELECT
+        rol,
+        origen_datos,
+        correo_institucional,
+        correo_personal,
+        correo_preferido,
+        password_hash,
+        requiere_cambio_password
       FROM perfiles
       WHERE id = ${request.auth.id}
       LIMIT 1
@@ -124,13 +146,28 @@ router.put('/editar', async (request, response, next) => {
     }
 
     const allowedFields = current.rol === 'supervisor'
-      ? ['nombre', 'carrera', 'telefono', 'correo_personal']
+      ? ['nombre', 'carrera', 'telefono', 'correo_personal', 'current_password', 'password']
       : current.origen_datos === 'api'
         ? ['telefono', 'correo_personal', 'correo_preferido']
         : ['nombre', 'facultad', 'telefono', 'correo_institucional', 'correo_personal', 'correo_preferido'];
     const disallowedField = Object.keys(parsed.data).find((field) => !allowedFields.includes(field));
     if (disallowedField) {
       response.status(400).json({ error: 'No tienes permiso para modificar ese campo del perfil.' });
+      return;
+    }
+
+    if (current.requiere_cambio_password && parsed.data.password === undefined) {
+      response.status(403).json({
+        error: 'Debes cambiar tu contraseña temporal antes de continuar.',
+        code: 'password_change_required',
+      });
+      return;
+    }
+
+    if (parsed.data.password !== undefined
+      && (!current.password_hash
+        || !(await verifyPassword(parsed.data.current_password ?? '', current.password_hash)))) {
+      response.status(401).json({ error: 'La contraseña actual no es válida.' });
       return;
     }
 
@@ -156,6 +193,9 @@ router.put('/editar', async (request, response, next) => {
       }
     }
 
+    const newPasswordHash = parsed.data.password === undefined
+      ? null
+      : await hashPassword(parsed.data.password);
     const rows = await sql`
       UPDATE perfiles
       SET
@@ -165,7 +205,9 @@ router.put('/editar', async (request, response, next) => {
         telefono = CASE WHEN ${parsed.data.telefono !== undefined} THEN ${parsed.data.telefono ?? null} ELSE telefono END,
         correo_institucional = CASE WHEN ${parsed.data.correo_institucional !== undefined} THEN ${parsed.data.correo_institucional ?? null} ELSE correo_institucional END,
         correo_personal = CASE WHEN ${parsed.data.correo_personal !== undefined} THEN ${parsed.data.correo_personal ?? null} ELSE correo_personal END,
-        correo_preferido = CASE WHEN ${parsed.data.correo_preferido !== undefined} THEN ${parsed.data.correo_preferido ?? 'institucional'} ELSE correo_preferido END
+        correo_preferido = CASE WHEN ${parsed.data.correo_preferido !== undefined} THEN ${parsed.data.correo_preferido ?? 'institucional'} ELSE correo_preferido END,
+        password_hash = CASE WHEN ${parsed.data.password !== undefined} THEN ${newPasswordHash} ELSE password_hash END,
+        requiere_cambio_password = CASE WHEN ${parsed.data.password !== undefined} THEN false ELSE requiere_cambio_password END
       WHERE id = ${request.auth.id}
       RETURNING
         id,
@@ -181,7 +223,9 @@ router.put('/editar', async (request, response, next) => {
         correo_preferido,
         origen_datos,
         created_at::text AS created_at,
-        avatar_url
+        avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado
     `;
     if (!rows[0]) {
       response.status(404).json({ error: 'No se encontró el perfil.' });
@@ -194,7 +238,11 @@ router.put('/editar', async (request, response, next) => {
   }
 });
 
-router.post('/actualizar-telefono', requireRole('alumno'), async (request, response, next) => {
+router.post(
+  '/actualizar-telefono',
+  requirePasswordChangeComplete,
+  requireRole('alumno'),
+  async (request, response, next) => {
   const parsed = updatePhoneSchema.safeParse(request.body);
   if (!parsed.success) {
     response.status(400).json({ error: 'Ingresa un DNI y un teléfono válidos.' });
@@ -233,11 +281,14 @@ router.post('/actualizar-telefono', requireRole('alumno'), async (request, respo
       nombre: profile.nombre,
       correo,
       telefono: parsed.data.telefono,
-    });
+      },
+    );
 
     const rows = await sql`
       UPDATE perfiles
-      SET telefono = ${parsed.data.telefono}
+      SET
+        telefono = ${parsed.data.telefono},
+        telefono_confirmado = true
       WHERE id = ${request.auth.id}
         AND dni = ${parsed.data.dni}
       RETURNING
@@ -254,7 +305,9 @@ router.post('/actualizar-telefono', requireRole('alumno'), async (request, respo
         correo_preferido,
         origen_datos,
         created_at::text AS created_at,
-        avatar_url
+        avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado
     `;
     if (!rows[0]) {
       response.status(404).json({ error: 'No se encontró el perfil para guardar el teléfono.' });
@@ -270,5 +323,49 @@ router.post('/actualizar-telefono', requireRole('alumno'), async (request, respo
     next(error);
   }
 });
+
+router.post(
+  '/confirmar-telefono',
+  requirePasswordChangeComplete,
+  requireRole('alumno'),
+  async (request, response, next) => {
+    try {
+      const rows = await sql`
+        UPDATE perfiles
+        SET telefono_confirmado = true
+        WHERE id = ${request.auth.id}
+          AND rol = 'alumno'
+          AND origen_datos = 'api'
+          AND telefono IS NOT NULL
+          AND btrim(telefono) <> ''
+        RETURNING
+          id,
+          auth_user_id::text AS auth_user_id,
+          dni,
+          rol,
+          nombre,
+          facultad,
+          carrera,
+          telefono,
+          correo_institucional,
+          correo_personal,
+          correo_preferido,
+          origen_datos,
+          created_at::text AS created_at,
+          avatar_url,
+          requiere_cambio_password,
+          telefono_confirmado
+      `;
+      if (!rows[0]) {
+        response.status(404).json({ error: 'No se encontró un teléfono para confirmar.' });
+        return;
+      }
+      response.json({ data: rows[0] });
+    } catch (error) {
+      console.error('Error en POST /api/perfiles/confirmar-telefono:', error?.message);
+      next(error);
+    }
+  },
+);
 
 export default router;

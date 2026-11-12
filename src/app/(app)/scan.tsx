@@ -123,15 +123,19 @@ export default function ScanScreen() {
       const message = isDuplicateAttendance
         ? `Ya marcaste tu asistencia hoy a las ${localTime}`
         : error instanceof Error ? error.message : 'No se pudo procesar el código QR.';
-      if (!isDuplicateAttendance) {
-        console.error('No se pudo procesar el código QR escaneado.', error);
-      }
+      if (!isDuplicateAttendance) console.error('No se pudo procesar el código QR escaneado.', error);
       if (!isMounted.current) return;
-      setScanError(message);
-      Alert.alert(
-        isDuplicateAttendance ? 'Asistencia ya registrada' : 'Error',
-        isDuplicateAttendance ? message : 'No se pudo procesar el código QR',
-      );
+      if (isDuplicateAttendance) {
+        setScanError(message);
+        Alert.alert('Asistencia ya registrada', message);
+      } else if (error instanceof ApiRequestError && error.status === 500) {
+        setScanError(message);
+        Alert.alert('Error del servidor', 'No se pudo procesar el código QR. Inténtalo nuevamente.');
+      } else {
+        scanLocked.current = false;
+        setScanned(false);
+        setScanError(null);
+      }
     } finally {
       if (isMounted.current) {
         setIsProcessing(false);

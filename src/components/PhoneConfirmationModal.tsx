@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 
 import { useAuth } from '@/context/AuthContext';
+import { ApiRequestError } from '@/services/auth-api';
 import { colors, fonts } from '@/theme';
 
 interface PhoneConfirmationModalProps {
@@ -28,20 +29,33 @@ export default function PhoneConfirmationModal({
   onConfirm,
   onRequestClose,
 }: PhoneConfirmationModalProps) {
-  const { updatePhone } = useAuth();
+  const { updatePhone, confirmPhone } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const [newPhone, setNewPhone] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
 
   function closeModal() {
     setIsUpdating(false);
     setNewPhone('');
+    setPhoneError(null);
     onRequestClose();
   }
 
-  function confirmPhone() {
-    onConfirm();
-    closeModal();
+  async function handleConfirmPhone() {
+    setIsSaving(true);
+    try {
+      await confirmPhone();
+      onConfirm();
+      closeModal();
+    } catch (confirmError) {
+      console.error('No se pudo confirmar el teléfono.', confirmError);
+      if (confirmError instanceof ApiRequestError && confirmError.status === 500) {
+        showMessage('No se pudo confirmar el teléfono', confirmError.message);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function showMessage(title: string, message: string) {
@@ -55,21 +69,22 @@ export default function PhoneConfirmationModal({
   async function savePhone() {
     const phone = newPhone.trim();
     if (!/^[+()\d\s-]{7,20}$/.test(phone)) {
-      showMessage('Número no válido', 'Ingresa un teléfono válido de entre 7 y 20 caracteres.');
+      console.error('El teléfono ingresado no tiene un formato válido.');
+      setPhoneError('Ingresa un teléfono válido de entre 7 y 20 caracteres.');
       return;
     }
 
     setIsSaving(true);
+    setPhoneError(null);
     try {
       await updatePhone(phone);
       showMessage('¡Teléfono actualizado!', 'Tu número se guardó correctamente.');
       closeModal();
     } catch (saveError) {
       console.error('No se pudo actualizar el teléfono.', saveError);
-      showMessage(
-        'No se pudo actualizar el teléfono',
-        saveError instanceof Error ? saveError.message : 'Ocurrió un error inesperado.',
-      );
+      if (saveError instanceof ApiRequestError && saveError.status === 500) {
+        showMessage('No se pudo actualizar el teléfono', saveError.message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -104,12 +119,16 @@ export default function PhoneConfirmationModal({
                 autoComplete="tel"
                 keyboardType="phone-pad"
                 maxLength={20}
-                onChangeText={setNewPhone}
+                onChangeText={(value) => {
+                  setNewPhone(value);
+                  setPhoneError(null);
+                }}
                 placeholder="Número de celular"
                 placeholderTextColor={colors.textMuted}
                 style={styles.input}
                 value={newPhone}
               />
+              {phoneError && <Text style={styles.validationText}>{phoneError}</Text>}
               <Pressable
                 accessibilityRole="button"
                 disabled={isSaving}
@@ -129,9 +148,12 @@ export default function PhoneConfirmationModal({
             <View style={styles.actions}>
               <Pressable
                 accessibilityRole="button"
-                onPress={confirmPhone}
-                style={({ pressed }) => [styles.primaryButton, styles.actionButton, pressed && styles.pressed]}>
-                <Text style={styles.primaryButtonText}>Sí, es mío</Text>
+                disabled={isSaving}
+                onPress={() => void handleConfirmPhone()}
+                style={({ pressed }) => [styles.primaryButton, styles.actionButton, pressed && styles.pressed, isSaving && styles.disabled]}>
+                {isSaving
+                  ? <ActivityIndicator color="#111827" />
+                  : <Text style={styles.primaryButtonText}>Sí, es mío</Text>}
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -188,6 +210,11 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontFamily: fonts.body,
     fontSize: 15,
+  },
+  validationText: {
+    color: colors.danger,
+    fontFamily: fonts.body,
+    fontSize: 13,
   },
   actions: {
     flexDirection: 'row',

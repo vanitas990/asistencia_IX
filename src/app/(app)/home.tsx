@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,6 +39,7 @@ export default function HomeScreen() {
   const userRole = user?.rol;
   const shouldConfirmPhone = user?.rol === 'alumno'
     && user.origen_datos === 'api'
+    && user.telefono_confirmado === false
     && !isPhonePromptDismissed;
   const { width: windowWidth } = useWindowDimensions();
   const isNarrowScreen = windowWidth < 390;
@@ -153,6 +155,32 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView edges={['left', 'right', 'bottom']} style={styles.safeArea}>
+    <Modal
+      animationType="fade"
+      onRequestClose={() => router.replace({
+        pathname: '/(app)/editar-perfil',
+        params: { focusPassword: 'true' },
+      })}
+      transparent
+      visible={user.requiere_cambio_password}>
+      <View style={styles.passwordNoticeOverlay}>
+        <View style={styles.passwordNoticeCard}>
+          <Text style={styles.passwordNoticeTitle}>Actualiza tu contraseña</Text>
+          <Text style={styles.passwordNoticeText}>
+            Has ingresado con una contraseña temporal. Por favor, actualízala en tu perfil por seguridad.
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.replace({
+              pathname: '/(app)/editar-perfil',
+              params: { focusPassword: 'true' },
+            })}
+            style={({ pressed }) => [styles.passwordNoticeButton, pressed && styles.pressed]}>
+            <Text style={styles.passwordNoticeButtonText}>Aceptar</Text>
+          </Pressable>
+        </View>
+      </View>
+    </Modal>
     <PhoneConfirmationModal
       visible={shouldConfirmPhone}
       telefonoActual={user.telefono}
@@ -414,6 +442,12 @@ const styles = StyleSheet.create({
   codeCopyIcon: { color: '#bfdbfe', fontSize: 15, fontWeight: '800' },
   codeCopyText: { color: '#ffffff', fontFamily: fonts.medium, fontSize: 12 },
   copyFeedback: { color: '#d2e4d5', fontFamily: fonts.medium, fontSize: 11 },
+  passwordNoticeOverlay: { flex: 1, justifyContent: 'center', padding: 24, backgroundColor: 'rgba(0, 0, 0, 0.78)' },
+  passwordNoticeCard: { width: '100%', maxWidth: 440, alignSelf: 'center', gap: 16, padding: 24, borderWidth: 1, borderColor: colors.border, borderRadius: 20, backgroundColor: 'rgba(22, 29, 37, 0.97)', ...cardElevation },
+  passwordNoticeTitle: { color: colors.text, fontFamily: fonts.display, fontSize: 24, textAlign: 'center' },
+  passwordNoticeText: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  passwordNoticeButton: { minHeight: 50, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: '#FFFFFF' },
+  passwordNoticeButtonText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 15 },
   statusBanner: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, paddingVertical: 13, borderRadius: 12 },
   noticeBanner: { backgroundColor: colors.successBackground },
   statusIcon: { color: colors.success, fontSize: 15, fontWeight: '900' },

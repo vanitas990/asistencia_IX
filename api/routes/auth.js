@@ -2,6 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { sql } from '../db.js';
+import {
+  authenticate,
+  requirePasswordChangeComplete,
+  requireRole,
+} from '../middleware/authenticate.js';
 import { authRateLimit } from '../middleware/auth-rate-limit.js';
 import { registerSchema } from '../schemas/auth.js';
 import { lookupUniversityStudent, StudentLookupError } from '../utils/estudiantes.js';
@@ -13,6 +18,11 @@ import {
   verifyPassword,
   verifyRefreshToken,
 } from '../utils/auth.js';
+import {
+  generateRecoveryCodes,
+  generateTemporaryPassword,
+  hashRecoveryCode,
+} from '../utils/recovery-codes.js';
 
 const router = Router();
 
@@ -24,6 +34,13 @@ const loginSchema = z.object({
 
 const refreshSchema = z.object({
   refresh_token: z.string().min(1).max(4096),
+}).strict();
+const passwordRecoverySchema = z.object({
+  dni: z.string().regex(/^\d{8}$/),
+  codigo_recuperacion: z.string().regex(/^UNH-[A-F0-9]{24}$/i),
+}).strict();
+const recoveryCodesSchema = z.object({
+  current_password: z.string().min(1).max(128),
 }).strict();
 
 function createAuthResponse(profile) {
@@ -117,7 +134,9 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           correo_preferido,
           origen_datos,
           created_at::text AS created_at,
-          avatar_url
+          avatar_url,
+          requiere_cambio_password,
+          telefono_confirmado
       `;
 
       response.status(201).json({
@@ -180,6 +199,8 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
         origen_datos,
         created_at::text AS created_at,
         avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado,
         password_hash
       FROM perfiles
       WHERE dni = ${dni}
@@ -219,7 +240,7 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
           RETURNING
             id, auth_user_id::text AS auth_user_id, dni, rol, nombre, facultad, carrera,
             telefono, correo_institucional, correo_personal, correo_preferido, origen_datos,
-            created_at::text AS created_at, avatar_url
+            created_at::text AS created_at, avatar_url, requiere_cambio_password, telefono_confirmado
         `;
 
         const newUser = newUserRows[0];
@@ -275,6 +296,114 @@ router.post('/login', authRateLimit('login'), async (request, response, next) =>
   }
 });
 
+router.post('/recuperar-password-supervisor', authRateLimit('recover-supervisor-password'), async (request, response, next) => {
+  const parsed = passwordRecoverySchema.safeParse(request.body);
+  if (!parsed.success) {
+    response.status(400).json({ error: 'El DNI o el código de recuperación no tienen un formato válido.' });
+    return;
+  }
+
+  try {
+    const temporaryPassword = generateTemporaryPassword();
+    const passwordHash = await hashPassword(temporaryPassword);
+    const authUserId = generateAuthUserId();
+    const rows = await sql`
+      WITH consumed AS (
+        DELETE FROM public.codigos_recuperacion_supervisor AS recovery
+        USING public.perfiles AS profile
+        WHERE recovery.perfil_id = profile.id
+          AND profile.dni = ${parsed.data.dni}
+          AND profile.rol = 'supervisor'
+          AND recovery.codigo_hash = ${hashRecoveryCode(parsed.data.codigo_recuperacion)}
+        RETURNING recovery.perfil_id
+      )
+      UPDATE public.perfiles AS profile
+      SET
+        password_hash = ${passwordHash},
+        requiere_cambio_password = true,
+        auth_user_id = ${authUserId}::uuid
+      FROM consumed
+      WHERE profile.id = consumed.perfil_id
+        AND profile.rol = 'supervisor'
+      RETURNING profile.id
+    `;
+
+    if (!rows[0]) {
+      response.status(400).json({ error: 'El DNI o el código de recuperación no son válidos o el código ya fue utilizado.' });
+      return;
+    }
+
+    response.json({ data: { temporary_password: temporaryPassword } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post(
+  '/codigos-recuperacion-supervisor',
+  authenticate,
+  requireRole('supervisor'),
+  requirePasswordChangeComplete,
+  authRateLimit('issue-supervisor-recovery-codes'),
+  async (request, response, next) => {
+    const parsed = recoveryCodesSchema.safeParse(request.body);
+    if (!parsed.success) {
+      response.status(400).json({ error: 'Ingresa tu contraseña actual.' });
+      return;
+    }
+
+    try {
+      const profiles = await sql`
+        SELECT password_hash
+        FROM public.perfiles
+        WHERE id = ${request.auth.id}
+          AND rol = 'supervisor'
+        LIMIT 1
+      `;
+      const profile = profiles[0];
+      if (!profile?.password_hash || !(await verifyPassword(parsed.data.current_password, profile.password_hash))) {
+        response.status(401).json({ error: 'La contraseña actual no es válida.' });
+        return;
+      }
+
+      const recoveryCodes = generateRecoveryCodes();
+      const recoveryCodeHashes = recoveryCodes.map(hashRecoveryCode);
+      const rows = await sql`
+        WITH supervisor AS (
+          SELECT id
+          FROM public.perfiles
+          WHERE id = ${request.auth.id}
+            AND rol = 'supervisor'
+        ),
+        cleared AS (
+          DELETE FROM public.codigos_recuperacion_supervisor
+          WHERE perfil_id IN (SELECT id FROM supervisor)
+          RETURNING perfil_id
+        ),
+        cleared_count AS (
+          SELECT COUNT(*) AS count FROM cleared
+        ),
+        inserted AS (
+          INSERT INTO public.codigos_recuperacion_supervisor (perfil_id, codigo_hash)
+          SELECT supervisor.id, candidate.codigo_hash
+          FROM supervisor
+          CROSS JOIN cleared_count
+          CROSS JOIN unnest(${recoveryCodeHashes}::text[]) AS candidate(codigo_hash)
+          RETURNING id
+        )
+        SELECT COUNT(*)::integer AS code_count FROM inserted
+      `;
+
+      if (rows[0]?.code_count !== recoveryCodes.length) {
+        throw new Error('Recovery code storage did not save all generated codes.');
+      }
+      response.json({ data: { recovery_codes: recoveryCodes } });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 router.post('/refresh', authRateLimit('refresh'), async (request, response, next) => {
   const parsed = refreshSchema.safeParse(request.body);
   if (!parsed.success) {
@@ -304,7 +433,9 @@ router.post('/refresh', authRateLimit('refresh'), async (request, response, next
         correo_preferido,
         origen_datos,
         created_at::text AS created_at,
-        avatar_url
+        avatar_url,
+        requiere_cambio_password,
+        telefono_confirmado
       FROM perfiles
       WHERE auth_user_id = ${claims.sub}::uuid
       LIMIT 1

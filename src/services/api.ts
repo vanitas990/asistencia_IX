@@ -14,22 +14,32 @@ function isLoopbackUrl(value: string) {
 
 function getMetroHost() {
   const hostUri = Constants.expoConfig?.hostUri;
-  if (!hostUri) return 'localhost';
+  if (!hostUri) {
+    throw new Error('No se pudo determinar la dirección del equipo desde Expo (hostUri).');
+  }
 
   try {
     const url = new URL(hostUri.includes('://') ? hostUri : `http://${hostUri}`);
-    return url.hostname;
+    const hostname = url.hostname.replace(/^\[|\]$/g, '');
+    return hostname.includes(':') ? `[${hostname}]` : hostname;
   } catch {
-    return hostUri.split(':')[0] || 'localhost';
+    throw new Error(`La dirección del equipo proporcionada por Expo no es válida: ${hostUri}`);
   }
 }
 
 export function getApiUrl() {
+  if (Platform.OS === 'web') {
+    return `http://localhost:${API_PORT}/api`;
+  }
+
+  if (Platform.OS === 'android' && process.env.EXPO_PUBLIC_USE_ADB_REVERSE === 'true') {
+    return `http://localhost:${API_PORT}/api`;
+  }
+
   const configuredApiUrl = process.env.EXPO_PUBLIC_API_URL?.trim();
   if (!__DEV__ && configuredApiUrl && !isLoopbackUrl(configuredApiUrl)) {
     return configuredApiUrl.replace(/\/+$/, '');
   }
 
-  const host = Platform.OS === 'web' ? 'localhost' : getMetroHost();
-  return `http://${host}:${API_PORT}/api`;
+  return `http://${getMetroHost()}:${API_PORT}/api`;
 }

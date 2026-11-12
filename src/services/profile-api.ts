@@ -13,7 +13,10 @@ export type EditableProfile = Partial<Pick<
   | 'correo_institucional'
   | 'correo_personal'
   | 'correo_preferido'
->>;
+>> & {
+  current_password?: string;
+  password?: string;
+};
 
 async function parseProfileResponse(response: Response, fallbackMessage: string): Promise<User> {
   let body: unknown;
@@ -78,4 +81,51 @@ export async function updateProfilePhone(
     body: JSON.stringify({ dni, telefono }),
   });
   return parseProfileResponse(response, 'No se pudo actualizar el teléfono.');
+}
+
+export async function confirmProfilePhone(
+  apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
+): Promise<User> {
+  const response = await apiFetch('/api/perfiles/confirmar-telefono', {
+    method: 'POST',
+  });
+  return parseProfileResponse(response, 'No se pudo confirmar el teléfono.');
+}
+
+export async function issueSupervisorRecoveryCodes(
+  apiFetch: (path: string, init?: RequestInit) => Promise<Response>,
+  currentPassword: string,
+): Promise<string[]> {
+  const response = await apiFetch('/api/auth/codigos-recuperacion-supervisor', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password: currentPassword }),
+  });
+
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    console.error('La respuesta de códigos de recuperación no es JSON válido.', error);
+    throw new Error('La API devolvió una respuesta no válida.');
+  }
+
+  if (!response.ok) {
+    const errorResult = z.object({ error: z.string() }).safeParse(body);
+    throw new ApiRequestError(
+      errorResult.success ? errorResult.data.error : 'No se pudieron generar los códigos de recuperación.',
+      response.status,
+    );
+  }
+
+  const result = z.object({
+    data: z.object({ recovery_codes: z.array(z.string().min(1)).length(3) }),
+  }).safeParse(body);
+  if (!result.success) {
+    console.error('La respuesta de códigos de recuperación no coincide con el esquema.', {
+      issues: result.error.issues.map(({ path, code, message }) => ({ path, code, message })),
+    });
+    throw new Error('La API devolvió códigos de recuperación no válidos.');
+  }
+  return result.data.data.recovery_codes;
 }

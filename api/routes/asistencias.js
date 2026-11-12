@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { sql } from '../db.js';
-import { authenticate } from '../middleware/authenticate.js';
+import { authenticate, requirePasswordChangeComplete } from '../middleware/authenticate.js';
 
 const router = Router();
 const markSchema = z.object({
@@ -22,7 +22,7 @@ const paginationSchema = z.object({
   fecha: calendarDateSchema.optional(),
 });
 
-router.use(authenticate);
+router.use(authenticate, requirePasswordChangeComplete);
 
 router.post('/marcar', async (request, response, next) => {
   if (request.auth.role !== 'alumno') {

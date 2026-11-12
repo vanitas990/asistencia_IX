@@ -25,7 +25,8 @@ npm start
 ```
 
 El servidor usa `PORT` del entorno (por defecto `3000`) y ofrece `GET /api/health` (y su alias `GET /health`),
-`POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh` y las rutas de
+`POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`,
+`POST /api/auth/recuperar-password-supervisor` y las rutas de
 vinculación y QR indicadas abajo. Las rutas de autenticación limitan los intentos por IP
 usando la tabla `rate_limits`.
 
@@ -90,7 +91,9 @@ Cada solicitud valida el token, vuelve a cargar el perfil vigente y autoriza seg
   consultar el historial de un alumno específico únicamente si mantienen una
   vinculación activa.
 - `PUT /api/perfiles/editar`: actualiza nombre, apellido, facultad, carrera y ciclo
-  del perfil autenticado; el DNI y rol no se aceptan en el payload.
+  del perfil autenticado; el DNI y rol no se aceptan en el payload. Para cambiar la
+  contraseña del supervisor, envía `current_password` y `password`; la nueva contraseña
+  debe tener al menos 8 caracteres.
 
 Las respuestas exitosas de estos endpoints envuelven el resultado en `data`. Los errores
 de validación, autorización y conflictos usan respuestas JSON con `error`.
@@ -113,6 +116,17 @@ Argon2id. Si todavía no existe, ejecuta `api/migrations/001-add-password-hash.s
 Neon. La migración es aditiva y la columna queda nullable para no invalidar los perfiles
 existentes; estos perfiles deberán restablecer su contraseña para iniciar sesión.
 Ninguna contraseña en texto plano se guarda en la base de datos.
+
+La recuperación de contraseña requiere ejecutar `api/migrations/007-supervisor-password-recovery.sql`
+en Neon. La tabla `codigos_recuperacion_supervisor` solo almacena hashes de códigos aleatorios;
+cada código se invalida al usarse. El endpoint de recuperación devuelve una contraseña temporal
+aleatoria una sola vez, invalida las sesiones existentes y marca `requiere_cambio_password`.
+El supervisor puede emitir o reemplazar sus tres códigos desde Editar Perfil tras reingresar su
+contraseña actual. Los códigos nuevos se muestran una vez y los anteriores quedan invalidados.
+Al iniciar sesión con una contraseña temporal, la API bloquea las demás operaciones autenticadas
+hasta que se cambie mediante `PUT /api/perfiles/editar`.
+El alta pública de supervisores permanece bloqueada hasta integrar verificación institucional real;
+las cuentas deben aprovisionarse por el proceso institucional vigente.
 
 Al iniciar, la API registra únicamente indicadores booleanos sobre el rol de conexión,
 RLS de `perfiles` y la existencia de `password_hash`. Los errores de base de datos se

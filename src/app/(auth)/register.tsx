@@ -3,7 +3,6 @@ import { Link, router } from 'expo-router';
 import { useContext, useEffect, useState } from 'react';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import {
-  Alert,
   ActivityIndicator,
   Platform,
   Pressable,
@@ -68,9 +67,6 @@ export default function RegisterScreen() {
   const [role, setRole] = useState<RegistrationRole>('alumno');
   const [correoPreferido, setCorreoPreferido] = useState<'institucional' | 'personal'>('institucional');
   const [password, setPassword] = useState('');
-  const [verificationCode, setVerificationCode] = useState('');
-  const [isVerificationCodeSent, setIsVerificationCodeSent] = useState(false);
-  const [isVerificationCodeVerified, setIsVerificationCodeVerified] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [acceptedPolicy, setAcceptedPolicy] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -83,47 +79,7 @@ export default function RegisterScreen() {
 
   function updateField(field: keyof ManualRegistrationForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
-    if (field === 'correo_personal') {
-      setIsVerificationCodeSent(false);
-      setIsVerificationCodeVerified(false);
-      setVerificationCode('');
-    }
     setFormError(null);
-  }
-
-  function showMessage(title: string, message: string) {
-    if (Platform.OS === 'web') {
-      globalThis.alert(`${title}\n\n${message}`);
-      return;
-    }
-    Alert.alert(title, message);
-  }
-
-  function sendVerificationCode() {
-    const emailResult = z.string().email('Ingresa un correo válido.').safeParse(form.correo_personal.trim());
-    if (!emailResult.success) {
-      setFormError(emailResult.error.issues[0]?.message ?? 'Ingresa un correo válido.');
-      return;
-    }
-
-    // TODO: Conectar con el endpoint de envío de códigos de correo
-    setIsVerificationCodeSent(true);
-    setIsVerificationCodeVerified(false);
-    setVerificationCode('');
-    setFormError(null);
-    showMessage('Verificación', `Código enviado a ${emailResult.data} (Simulación)`);
-  }
-
-  function verifyEmailCode() {
-    if (!/^\d{6}$/.test(verificationCode)) {
-      setFormError('Ingresa el código de verificación de 6 dígitos.');
-      return;
-    }
-
-    // TODO: Conectar con el endpoint de verificación de códigos de correo
-    setIsVerificationCodeVerified(true);
-    setFormError(null);
-    showMessage('Verificación', 'Código verificado (Simulación).');
   }
 
   async function handleSubmit() {
@@ -140,8 +96,20 @@ export default function RegisterScreen() {
       return;
     }
 
+    if (role === 'supervisor' && password.length < 6) {
+      setFormError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (role === 'supervisor' && password.length > 128) {
+      setFormError('La contraseña no puede superar 128 caracteres.');
+      return;
+    }
     if (role === 'alumno' && !form.correo_institucional.trim() && !form.correo_personal.trim()) {
       setFormError('Ingresa al menos un correo electrónico.');
+      return;
+    }
+    if (role === 'supervisor' && !form.correo_personal.trim()) {
+      setFormError('Ingresa un correo de contacto.');
       return;
     }
     if (role === 'alumno'
@@ -151,31 +119,15 @@ export default function RegisterScreen() {
       setFormError('Selecciona como preferido un correo que hayas ingresado.');
       return;
     }
-    if (role === 'supervisor' && password.length < 6) {
-      setFormError('La contraseña del supervisor debe tener al menos 6 caracteres.');
-      return;
-    }
-    if (role === 'supervisor' && !isVerificationCodeSent) {
-      setFormError('Envía primero el código de verificación al correo del supervisor.');
-      return;
-    }
-    if (role === 'supervisor' && !isVerificationCodeVerified) {
-      setFormError('Verifica el código de correo antes de crear la cuenta.');
-      return;
-    }
-    if (role === 'supervisor') {
-      setFormError('La verificación de correo aún es una simulación. El registro de supervisores no está disponible.');
-      return;
-    }
-
     const registrationPayload: RegisterFormData = {
       ...result.data,
-      carrera: 'Por asignar',
+      facultad: role === 'supervisor' ? null : result.data.facultad,
+      carrera: role === 'supervisor' ? result.data.facultad : 'Por asignar',
       correo_institucional: result.data.correo_institucional || null,
       correo_personal: result.data.correo_personal || null,
-      correo_preferido: correoPreferido,
+      correo_preferido: role === 'supervisor' ? 'personal' : correoPreferido,
       origen_datos: 'manual',
-      password: result.data.dni,
+      password: role === 'supervisor' ? password : result.data.dni,
       rol: role,
     };
 
@@ -224,9 +176,6 @@ export default function RegisterScreen() {
                   onPress={() => {
                     setRole(nextRole);
                     setFormError(null);
-                    setIsVerificationCodeSent(false);
-                    setIsVerificationCodeVerified(false);
-                    setVerificationCode('');
                   }}
                   style={styles.roleOption}>
                   <Text style={[styles.roleText, role === nextRole && styles.roleTextActive]}>
@@ -363,56 +312,9 @@ export default function RegisterScreen() {
                   secureTextEntry
                   style={styles.input}
                   value={password}
+                  maxLength={128}
                 />
               </View>
-            )}
-
-            {role === 'supervisor' && (
-              <>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={sendVerificationCode}
-                  style={({ pressed }) => [styles.verificationButton, pressed && styles.pressed]}>
-                  <Text style={styles.verificationButtonText}>
-                    {isVerificationCodeSent ? 'Reenviar código de verificación' : 'Enviar código de verificación'}
-                  </Text>
-                </Pressable>
-                {isVerificationCodeSent && (
-                  <View style={styles.field}>
-                    <Text style={styles.label}>Ingresar código de 6 dígitos</Text>
-                    <TextInput
-                      accessibilityLabel="Ingresar código de 6 dígitos"
-                      autoCapitalize="none"
-                      keyboardType="number-pad"
-                      maxLength={6}
-                      onChangeText={(value) => {
-                        setVerificationCode(value.replace(/\D/g, ''));
-                        setIsVerificationCodeVerified(false);
-                        setFormError(null);
-                      }}
-                      placeholder="000000"
-                      placeholderTextColor="rgba(255, 255, 255, 0.72)"
-                      style={styles.input}
-                      value={verificationCode}
-                    />
-                  </View>
-                )}
-                {isVerificationCodeSent && (
-                  <Pressable
-                    accessibilityRole="button"
-                    disabled={isVerificationCodeVerified}
-                    onPress={verifyEmailCode}
-                    style={({ pressed }) => [
-                      styles.verificationButton,
-                      pressed && styles.pressed,
-                      isVerificationCodeVerified && styles.disabled,
-                    ]}>
-                    <Text style={styles.verificationButtonText}>
-                      {isVerificationCodeVerified ? 'Correo verificado' : 'Verificar código'}
-                    </Text>
-                  </Pressable>
-                )}
-              </>
             )}
 
             {formError && (
@@ -545,8 +447,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   buttonText: { color: '#17211D', fontFamily: fonts.semibold, fontSize: 16 },
-  verificationButton: { minHeight: 44, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 12, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.32)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
-  verificationButtonText: { color: '#FFFFFF', fontFamily: fonts.semibold, fontSize: 13, textAlign: 'center' },
+  supervisorNotice: { padding: 12, borderWidth: 1, borderColor: 'rgba(216, 193, 165, 0.38)', borderRadius: 12, color: '#E0E0E0', backgroundColor: 'rgba(255, 255, 255, 0.07)', fontFamily: fonts.body, fontSize: 13, lineHeight: 19 },
   emailPreferenceOptions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   emailPreferenceOption: { minHeight: 42, justifyContent: 'center', paddingHorizontal: 14, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.32)', borderRadius: 12, backgroundColor: 'rgba(255, 255, 255, 0.08)' },
   emailPreferenceOptionSelected: { borderColor: '#D8C1A5', backgroundColor: 'rgba(255, 255, 255, 0.16)' },

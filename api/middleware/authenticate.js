@@ -17,7 +17,7 @@ export async function authenticate(request, response, next) {
     }
 
     const profiles = await sql`
-      SELECT id, auth_user_id::text AS auth_user_id, rol
+      SELECT id, auth_user_id::text AS auth_user_id, rol, requiere_cambio_password
       FROM perfiles
       WHERE auth_user_id = ${claims.sub}::uuid
       LIMIT 1
@@ -32,11 +32,23 @@ export async function authenticate(request, response, next) {
       id: profile.id,
       authUserId: profile.auth_user_id,
       role: profile.rol,
+      requiresPasswordChange: profile.requiere_cambio_password,
     };
     next();
   } catch (error) {
     next(error);
   }
+}
+
+export function requirePasswordChangeComplete(request, response, next) {
+  if (request.auth?.requiresPasswordChange) {
+    response.status(403).json({
+      error: 'Debes cambiar tu contraseña temporal antes de continuar.',
+      code: 'password_change_required',
+    });
+    return;
+  }
+  next();
 }
 
 export function requireRole(role) {

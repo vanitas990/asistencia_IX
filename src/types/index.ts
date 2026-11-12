@@ -17,6 +17,8 @@ export interface Perfil {
   origen_datos: ProfileOrigin;
   created_at: string;
   avatar_url: string | null;
+  telefono_confirmado: boolean;
+  requiere_cambio_password: boolean;
 }
 
 export type User = Perfil;

@@ -1,5 +1,5 @@
 -- DESTRUCTIVE: run manually in Neon only after confirming that all data in these
--- six tables can be discarded. This drops existing users, attendance, QR codes,
+-- seven tables can be discarded. This drops existing users, attendance, QR codes,
 -- links, and rate-limit state.
 BEGIN;
 
@@ -20,7 +20,16 @@ CREATE TABLE public.perfiles (
   carrera text NOT NULL,
   created_at timestamptz DEFAULT now(),
   password_hash text,
+  requiere_cambio_password boolean NOT NULL DEFAULT false,
+  telefono_confirmado boolean NOT NULL DEFAULT false,
   avatar_url text
+);
+
+CREATE TABLE public.codigos_recuperacion_supervisor (
+  id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  perfil_id integer NOT NULL REFERENCES public.perfiles(id) ON DELETE CASCADE,
+  codigo_hash text NOT NULL UNIQUE,
+  created_at timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE TABLE public.vinculaciones (
@@ -78,6 +87,7 @@ CREATE UNIQUE INDEX qr_supervisor_activo_por_supervisor_idx
   WHERE activo = true;
 
 ALTER TABLE public.perfiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.codigos_recuperacion_supervisor ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vinculaciones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.qr_supervisor ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.qr_alumno ENABLE ROW LEVEL SECURITY;
@@ -88,6 +98,24 @@ CREATE POLICY perfil_propio ON public.perfiles
   FOR ALL
   USING (auth_user_id = NULLIF(current_setting('app.user_id', true), '')::uuid)
   WITH CHECK (auth_user_id = NULLIF(current_setting('app.user_id', true), '')::uuid);
+
+CREATE POLICY codigos_recuperacion_supervisor_propios
+  ON public.codigos_recuperacion_supervisor
+  FOR ALL
+  USING (
+    perfil_id IN (
+      SELECT id FROM public.perfiles
+      WHERE auth_user_id = NULLIF(current_setting('app.user_id', true), '')::uuid
+        AND rol = 'supervisor'
+    )
+  )
+  WITH CHECK (
+    perfil_id IN (
+      SELECT id FROM public.perfiles
+      WHERE auth_user_id = NULLIF(current_setting('app.user_id', true), '')::uuid
+        AND rol = 'supervisor'
+    )
+  );
 
 CREATE POLICY vinculaciones_propias ON public.vinculaciones
   FOR ALL

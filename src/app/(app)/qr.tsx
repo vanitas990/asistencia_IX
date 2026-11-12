@@ -7,12 +7,9 @@ import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, StyleSheet, 
 import ViewShot, { captureRef, type ViewShotRef } from 'react-native-view-shot';
 
 import { useAuth } from '@/context/AuthContext';
+import { ApiRequestError } from '@/services/auth-api';
 import { generateQr, getAlumnoQr, regenerateQr } from '@/services/link-api';
 import { cardElevation, colors, fonts } from '@/theme';
-
-interface QrSvgHandle {
-  toDataURL: (callback: (base64: string) => void) => void;
-}
 
 export default function QrScreen() {
   const { apiFetch, user } = useAuth();
@@ -24,7 +21,6 @@ export default function QrScreen() {
   const [error, setError] = useState<string | null>(null);
   const isMountedRef = useRef(false);
   const qrCardRef = useRef<ViewShotRef | null>(null);
-  const qrSvgRef = useRef<QrSvgHandle | null>(null);
 
   const loadQr = useCallback(async (isActive: () => boolean = () => isMountedRef.current) => {
     if (isActive()) setError(null);
@@ -39,7 +35,7 @@ export default function QrScreen() {
     } catch (loadError) {
       if (isActive()) {
         console.error('No se pudo cargar el código QR.', loadError);
-        setError('load');
+        setError(loadError instanceof ApiRequestError && loadError.status === 500 ? 'load' : null);
       }
     } finally {
       if (isActive()) setIsLoading(false);
@@ -103,28 +99,21 @@ export default function QrScreen() {
     setIsExporting(true);
     try {
       if (Platform.OS === 'web') {
-        const qrSvg = qrSvgRef.current;
-        if (!token || !qrSvg) {
+        const printCard = document.getElementById('qr-print-card');
+        if (!token || !printCard) {
           throw new Error('El código QR todavía no está listo para descargar.');
         }
 
-        const base64 = await new Promise<string>((resolve, reject) => {
-          try {
-            qrSvg.toDataURL((data) => {
-              if (!data) {
-                reject(new Error('No se pudo generar la imagen del código QR.'));
-                return;
-              }
-              resolve(data);
-            });
-          } catch (error) {
-            reject(error);
-          }
+        await document.fonts.ready;
+        const html2canvas = (await import('html2canvas')).default;
+        const canvas = await html2canvas(printCard, {
+          backgroundColor: '#FFFFFF',
+          scale: Math.max(window.devicePixelRatio || 1, 2),
+          useCORS: true,
+          logging: false,
         });
         const link = document.createElement('a');
-        link.href = base64.startsWith('data:image/png;base64,')
-          ? base64
-          : `data:image/png;base64,${base64}`;
+        link.href = canvas.toDataURL('image/png');
         link.download = 'mi_qr_asistencia.png';
         document.body.appendChild(link);
         link.click();
@@ -178,7 +167,7 @@ export default function QrScreen() {
       setToken(qr.token);
     } catch (regenerateError) {
       console.error('No se pudo regenerar el código QR del supervisor.', regenerateError);
-      setError('load');
+      setError(regenerateError instanceof ApiRequestError && regenerateError.status === 500 ? 'load' : null);
     } finally {
       setIsRegenerating(false);
     }
@@ -201,9 +190,6 @@ export default function QrScreen() {
           <>
             <View style={styles.qrFrame}>
               <QRCode
-                getRef={(node: QrSvgHandle | null) => {
-                  qrSvgRef.current = node;
-                }}
                 value={token}
                 size={240}
                 color="#000000"
@@ -232,11 +218,17 @@ export default function QrScreen() {
           </>
         ) : null}
 
+        {error && (
+          <Text accessibilityRole="alert" style={styles.error}>
+            No se pudo cargar el código QR. Inténtalo nuevamente.
+          </Text>
+        )}
+
         {token && (
           <ViewShot
             ref={qrCardRef}
             style={styles.capturePosition}>
-            <View style={styles.printCard}>
+            <View nativeID="qr-print-card" style={styles.printCard}>
               <Text style={styles.printTitle}>
                 {userRole === 'alumno' ? 'CÓDIGO QR DEL ALUMNO' : 'MARCA TU ASISTENCIA'}
               </Text>
@@ -300,7 +292,7 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontFamily: fonts.display, fontSize: 25, textAlign: 'center' },
   subtitle: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
   error: { color: colors.danger, fontFamily: fonts.body, fontSize: 14, textAlign: 'center' },
-  qrFrame: { padding: 16, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  qrFrame: { padding: 18, borderRadius: 16, borderWidth: 1, borderColor: colors.border, backgroundColor: '#FFFFFF' },
   token: { color: colors.textMuted, fontFamily: fonts.body, fontSize: 11, textAlign: 'center' },
   capturePosition: { position: 'absolute', left: -10000, top: 0 },
   printCard: {
@@ -311,7 +303,7 @@ const styles = StyleSheet.create({
     gap: 20,
     padding: 28,
     borderRadius: 24,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
   },
   printTitle: { color: colors.primary, fontFamily: fonts.display, fontSize: 23, textAlign: 'center' },
   printQrFrame: { padding: 20, borderRadius: 18, backgroundColor: '#FFFFFF' },

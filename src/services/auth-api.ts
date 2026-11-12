@@ -120,6 +120,32 @@ export function registerWithApi(data: RegisterFormData) {
   return postAuthRequest('register', data);
 }
 
+export async function recoverSupervisorPassword(dni: string, recoveryCode: string) {
+  const response = await postJson('recuperar-password-supervisor', {
+    dni,
+    codigo_recuperacion: recoveryCode,
+  });
+  if (!response.ok) {
+    await throwApiError(response);
+  }
+
+  let responseBody: unknown;
+  try {
+    responseBody = await response.json();
+  } catch {
+    throw new Error('La API devolvió una respuesta no válida.');
+  }
+
+  const result = z.object({
+    data: z.object({ temporary_password: z.string().min(1) }),
+  }).safeParse(responseBody);
+  if (!result.success) {
+    throw new Error('La API devolvió una contraseña temporal no válida.');
+  }
+
+  return result.data.data.temporary_password;
+}
+
 export async function refreshWithApi(refreshToken: string): Promise<RefreshedSession> {
   const response = await postJson('refresh', { refresh_token: refreshToken });
   if (!response.ok) {

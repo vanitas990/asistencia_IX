@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 
 import { sql } from '../db.js';
-import { authenticate, requireRole } from '../middleware/authenticate.js';
+import { authenticate, requirePasswordChangeComplete, requireRole } from '../middleware/authenticate.js';
 
 const router = Router();
 const requestSchema = z.object({
@@ -15,7 +15,7 @@ const qrLinkSchema = z.object({
   token: z.string().min(1).max(256),
 }).strict();
 
-router.use(authenticate);
+router.use(authenticate, requirePasswordChangeComplete);
 
 router.post('/por-qr', requireRole('supervisor'), async (request, response, next) => {
   const parsed = qrLinkSchema.safeParse(request.body);

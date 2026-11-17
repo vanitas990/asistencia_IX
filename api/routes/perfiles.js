@@ -196,12 +196,17 @@ router.put('/editar', async (request, response, next) => {
     const newPasswordHash = parsed.data.password === undefined
       ? null
       : await hashPassword(parsed.data.password);
+    const nextCarrera = parsed.data.carrera === undefined
+      ? undefined
+      : current.rol === 'supervisor'
+        ? (parsed.data.carrera?.trim() || 'No aplica')
+        : parsed.data.carrera;
     const rows = await sql`
       UPDATE perfiles
       SET
         nombre = CASE WHEN ${parsed.data.nombre !== undefined} THEN ${parsed.data.nombre ?? null} ELSE nombre END,
         facultad = CASE WHEN ${parsed.data.facultad !== undefined} THEN ${parsed.data.facultad ?? null} ELSE facultad END,
-        carrera = CASE WHEN ${parsed.data.carrera !== undefined} THEN ${parsed.data.carrera ?? null} ELSE carrera END,
+        carrera = CASE WHEN ${nextCarrera !== undefined} THEN ${nextCarrera ?? null} ELSE carrera END,
         telefono = CASE WHEN ${parsed.data.telefono !== undefined} THEN ${parsed.data.telefono ?? null} ELSE telefono END,
         correo_institucional = CASE WHEN ${parsed.data.correo_institucional !== undefined} THEN ${parsed.data.correo_institucional ?? null} ELSE correo_institucional END,
         correo_personal = CASE WHEN ${parsed.data.correo_personal !== undefined} THEN ${parsed.data.correo_personal ?? null} ELSE correo_personal END,

@@ -4,7 +4,7 @@ const normalizedRegisterSchema = z.object({
   dni: z.string().regex(/^\d{8}$/),
   nombre: z.string().trim().min(1).max(150),
   facultad: z.string().trim().min(1).max(150).nullable().optional(),
-  carrera: z.string().trim().min(1).max(150).nullable().optional(),
+  carrera: z.string().trim().max(150).nullable().optional(),
   rol: z.enum(['supervisor', 'alumno']),
   password: z.string().min(6).max(128),
   correo_institucional: z.string().trim().email().max(254).nullable().optional(),
@@ -21,6 +21,9 @@ export const registerSchema = normalizedRegisterSchema.superRefine((data, contex
   if (data.rol === 'alumno' && data.origen_datos === 'manual') {
     if (!data.facultad?.trim()) {
       context.addIssue({ code: 'custom', path: ['facultad'], message: 'Ingresa la facultad.' });
+    }
+    if (!data.carrera?.trim()) {
+      context.addIssue({ code: 'custom', path: ['carrera'], message: 'Ingresa la carrera.' });
     }
     if (!data.correo_institucional && !data.correo_personal) {
       context.addIssue({

@@ -8,7 +8,8 @@
    - `DATABASE_URL`: cadena de conexión de Neon.
    - `JWT_SECRET`: secreto aleatorio de al menos 32 caracteres.
    - `CORS_ORIGINS`: orígenes web permitidos, separados por comas (por ejemplo, `https://mi-app.example.com`). Usa solo los dominios reales, sin rutas y sin `*`.
-   - `UNHEVAL_API_URL` (opcional): URL base del servicio universitario. Si no se configura, la consulta devuelve un alumno mock para pruebas.
+   - `UNHEVAL_API_URL`: URL base del servicio universitario.
+   - `UNHEVAL_API_KEY`: clave de acceso al servicio universitario.
 
 Render asigna `PORT` automáticamente; la API lo lee al iniciar. Configura la URL pública de la API como `EXPO_PUBLIC_API_URL` en el entorno de compilación de Expo. El health check está en `/health`.
 
@@ -50,13 +51,13 @@ a otros endpoints.
 
 El DNI (8 dígitos) es el identificador de inicio de sesión y vinculación. Las cuentas
 existentes deben tener su DNI único cargado para iniciar sesión con el esquema actual.
-`GET /api/estudiantes/consultar/:dni` consulta los datos universitarios del alumno. Si
-`UNHEVAL_API_URL` no está configurada, la API devuelve los datos mock documentados para
-probar el flujo directamente como JSON. En Render, `UNHEVAL_API_URL` debe ser la URL base
-externa; el backend añade el DNI como segmento final.
-Los perfiles de supervisor guardan `facultad` y `ciclo` como `NULL`. Si la base existente
-mantiene esas columnas como `NOT NULL`, ejecuta manualmente
-`api/migrations/005-allow-null-supervisor-academics.sql` en Neon antes de registrar supervisores.
+`GET /api/estudiantes/consultar/:dni` consulta los datos universitarios del alumno. La API
+no usa perfiles de prueba como fallback: si UNHEVAL no está configurado o no responde,
+la consulta devuelve un error y no crea ni devuelve un alumno ficticio. En Render,
+`UNHEVAL_API_URL` debe ser la URL base externa; el backend consulta `/personas?dni=...` y
+el catálogo `/facultades`.
+Los perfiles de supervisor guardan `facultad` como `NULL` y `carrera` como `No aplica`
+para cumplir con la restricción `carrera NOT NULL` del esquema real.
 
 Las operaciones de vinculación y QR requieren `Authorization: Bearer <access_token>`.
 Cada solicitud valida el token, vuelve a cargar el perfil vigente y autoriza según su rol:
@@ -90,8 +91,8 @@ Cada solicitud valida el token, vuelve a cargar el perfil vigente y autoriza seg
 - `GET /api/asistencias?alumno_id=123&limit=50&offset=0`: permite a un supervisor
   consultar el historial de un alumno específico únicamente si mantienen una
   vinculación activa.
-- `PUT /api/perfiles/editar`: actualiza nombre, apellido, facultad, carrera y ciclo
-  del perfil autenticado; el DNI y rol no se aceptan en el payload. Para cambiar la
+- `PUT /api/perfiles/editar`: actualiza los datos de perfil y contacto permitidos para
+  el rol del usuario; el DNI y rol no se aceptan en el payload. Para cambiar la
   contraseña del supervisor, envía `current_password` y `password`; la nueva contraseña
   debe tener al menos 8 caracteres.
 

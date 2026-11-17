@@ -41,17 +41,19 @@ function studentResponse(overrides = {}) {
   };
 }
 
-test('returns the configured mock student when the university API URL is absent', async () => {
+test('fails with 503 when the university API URL is absent', async () => {
   delete process.env.UNHEVAL_API_URL;
 
   try {
-    assert.deepEqual(await lookupUniversityStudent('12345678'), {
-      nombre: 'Nestor Armas',
-      facultad: 'Ingeniería de Sistemas',
-      carrera: 'Ingeniería de Software',
-      correo_institucional: null,
-      telefono: null,
-    });
+    await assert.rejects(
+      () => lookupUniversityStudent('12345678'),
+      (error) => {
+        assert.equal(error instanceof StudentLookupError, true);
+        assert.equal(error.status, 503);
+        assert.equal(error.message, 'El servicio de UNHEVAL no está disponible.');
+        return true;
+      },
+    );
   } finally {
     restoreEnvironment();
   }
@@ -263,7 +265,12 @@ test('redacts the DNI from university connection error logs', async () => {
   };
 
   try {
-    await assert.rejects(lookupUniversityStudent('76683028'), /connection failed/);
+    await assert.rejects(
+      lookupUniversityStudent('76683028'),
+      (error) => error instanceof StudentLookupError
+        && error.status === 503
+        && error.message === 'El servicio de UNHEVAL no está disponible.',
+    );
     assert.ok(diagnostics.some(([label, message]) => (
       label === 'Error real de conexión a UNHEVAL:'
       && message === 'connection failed for DNI [REDACTED_DNI]'

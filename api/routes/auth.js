@@ -43,6 +43,8 @@ const recoveryCodesSchema = z.object({
   current_password: z.string().min(1).max(128),
 }).strict();
 
+const SUPERVISOR_CARRERA_DEFAULT = 'No aplica';
+
 function createAuthResponse(profile) {
   return {
     access_token: createAccessToken(profile),
@@ -50,6 +52,19 @@ function createAuthResponse(profile) {
     user: profile,
     dni: profile.dni,
   };
+}
+
+function resolveRegistrationCarrera(role, studentRecord, carrera) {
+  if (role === 'supervisor') {
+    return SUPERVISOR_CARRERA_DEFAULT;
+  }
+  return studentRecord?.carrera ?? carrera;
+}
+
+function logRegistrationAudit(role, origenDatos, dni, nombre) {
+  if (role !== 'supervisor' && origenDatos !== 'manual') return;
+  const kind = role === 'supervisor' ? 'Supervisor' : 'Alumno';
+  console.log(`ALERTA AUDITORÍA: Nuevo ${kind} registrado - DNI: ${dni}, Nombre: ${nombre}`);
 }
 
 function redactRegistrationValue(value, registrationData) {
@@ -87,6 +102,12 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
     Object.assign(sensitiveRegistrationData, studentRecord);
     const passwordHash = await hashPassword(parsed.data.password);
     const authUserId = generateAuthUserId();
+    const carrera = resolveRegistrationCarrera(
+      parsed.data.rol,
+      studentRecord,
+      parsed.data.carrera,
+    );
+    const nombre = studentRecord?.nombre ?? parsed.data.nombre;
 
     try {
       const rows = await sql`
@@ -108,9 +129,9 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           ${authUserId}::uuid,
           ${parsed.data.dni},
           ${parsed.data.rol},
-          ${studentRecord?.nombre ?? parsed.data.nombre},
+          ${nombre},
           ${parsed.data.rol === 'supervisor' ? null : studentRecord?.facultad ?? parsed.data.facultad ?? null},
-          ${studentRecord?.carrera ?? parsed.data.carrera},
+          ${carrera},
           ${studentRecord?.telefono ?? parsed.data.telefono ?? null},
           ${studentRecord
             ? studentRecord.correo_institucional
@@ -138,6 +159,13 @@ router.post('/register', authRateLimit('register'), async (request, response, ne
           requiere_cambio_password,
           telefono_confirmado
       `;
+
+      logRegistrationAudit(
+        parsed.data.rol,
+        parsed.data.origen_datos,
+        parsed.data.dni,
+        rows[0]?.nombre ?? nombre,
+      );
 
       response.status(201).json({
         data: createAuthResponse(rows[0]),

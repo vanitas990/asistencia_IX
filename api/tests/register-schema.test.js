@@ -44,8 +44,11 @@ test('rejects split name fields from the previous registration contract', () => 
   }).success, false);
 });
 
-test('rejects supervisor registration without a career or specialization', () => {
-  assert.equal(registerSchema.safeParse({ ...validSupervisor, carrera: '' }).success, false);
+test('accepts supervisor registration without a career so the API can store No aplica', () => {
+  assert.equal(registerSchema.safeParse({ ...validSupervisor, carrera: '' }).success, true);
+  assert.equal(registerSchema.safeParse({ ...validSupervisor, carrera: null }).success, true);
+  const { carrera: _carrera, ...withoutCarrera } = validSupervisor;
+  assert.equal(registerSchema.safeParse(withoutCarrera).success, true);
 });
 
 test('rejects unknown fields from the legacy registration payload', () => {

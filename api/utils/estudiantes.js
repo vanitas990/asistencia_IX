@@ -1,13 +1,5 @@
 import { z } from 'zod';
 
-const mockStudent = {
-  nombre: 'Nestor Armas',
-  facultad: 'Ingeniería de Sistemas',
-  carrera: 'Ingeniería de Software',
-  correo_institucional: null,
-  telefono: null,
-};
-
 const universityStudentSchema = z.object({
   nombres: z.string().trim().min(1),
   nro_doc: z.string().regex(/^\d{8}$/),
@@ -44,7 +36,7 @@ function endpointUrl(baseUrl, path = '') {
   try {
     url = new URL(baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`);
   } catch {
-    throw new StudentLookupError('La URL de consulta universitaria no es válida.', 500);
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 500);
   }
 
   return new URL(path, url);
@@ -73,9 +65,9 @@ async function fetchJson(url, apiKey, signal) {
       : error?.message;
     console.error('Error real de conexión a UNHEVAL:', message);
     if (error?.name === 'AbortError') {
-      throw new StudentLookupError('La consulta universitaria excedió el tiempo de espera.', 504);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
-    throw error;
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
   }
 
   if (response.status === 404) {
@@ -87,7 +79,7 @@ async function fetchJson(url, apiKey, signal) {
     body = await response.json();
   } catch {
     if (response.ok) {
-      throw new StudentLookupError('La API universitaria devolvió una respuesta no válida.', 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
   }
 
@@ -95,35 +87,22 @@ async function fetchJson(url, apiKey, signal) {
 }
 
 async function lookupFacultyName(baseUrl, apiKey, facultyId, signal) {
-  const fallbackName = `Facultad ${facultyId}`;
-  let result;
-  try {
-    result = await fetchJson(endpointUrl(baseUrl, 'facultades'), apiKey, signal);
-  } catch (error) {
-    if (error instanceof StudentLookupError && error.status === 504) throw error;
-    console.warn('No se pudo consultar el catálogo de facultades; se usará el identificador de facultad.');
-    return fallbackName;
-  }
+  const result = await fetchJson(endpointUrl(baseUrl, 'facultades'), apiKey, signal);
 
   if (!result.response.ok || !result.body) {
-    console.warn('La API de facultades no está disponible; se usará el identificador de facultad.', {
-      status: result.response.status,
-    });
-    return fallbackName;
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
   }
 
   const facultyRows = z.object({
     data: z.array(facultySchema),
   }).passthrough().safeParse(result.body);
   if (!facultyRows.success) {
-    console.warn('La respuesta de facultades no tiene el formato esperado; se usará el identificador de facultad.');
-    return fallbackName;
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
   }
 
   const faculty = facultyRows.data.data.find((row) => row.id_facultad === facultyId);
   if (!faculty) {
-    console.warn('La facultad solicitada no aparece en el catálogo universitario.', { facultyId });
-    return fallbackName;
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
   }
   return faculty.nombre;
 }
@@ -131,12 +110,12 @@ async function lookupFacultyName(baseUrl, apiKey, facultyId, signal) {
 export async function lookupUniversityStudent(dni) {
   const externalApiUrl = process.env.UNHEVAL_API_URL?.trim();
   if (!externalApiUrl) {
-    return mockStudent;
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
   }
 
   const apiKey = process.env.UNHEVAL_API_KEY?.trim();
   if (!apiKey) {
-    throw new StudentLookupError('Falta configurar UNHEVAL_API_KEY en el entorno del servidor.', 500);
+    throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 500);
   }
 
   const controller = new AbortController();
@@ -151,10 +130,7 @@ export async function lookupUniversityStudent(dni) {
       throw new StudentLookupError('Alumno no encontrado.', 404);
     }
     if (!studentResult.response.ok) {
-      const message = studentResult.response.status === 401 || studentResult.response.status === 403
-        ? 'La API de UNHEVAL rechazó la clave configurada.'
-        : 'No se pudo consultar el registro universitario.';
-      throw new StudentLookupError(message, 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
 
     const studentRows = z.object({
@@ -162,10 +138,10 @@ export async function lookupUniversityStudent(dni) {
       data: z.array(z.unknown()),
     }).passthrough().safeParse(studentResult.body);
     if (!studentRows.success) {
-      throw new StudentLookupError('La API universitaria devolvió datos no válidos.', 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
     if (!studentRows.data.ok) {
-      throw new StudentLookupError('La API universitaria no pudo completar la consulta.', 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
     const firstRecord = studentRows.data.data[0];
     if (!firstRecord) {
@@ -186,10 +162,10 @@ export async function lookupUniversityStudent(dni) {
 
     const parsedStudent = universityStudentSchema.safeParse(firstRecord);
     if (!parsedStudent.success) {
-      throw new StudentLookupError('La API universitaria devolvió datos no válidos.', 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
     if (parsedStudent.data.nro_doc !== dni) {
-      throw new StudentLookupError('La API universitaria devolvió un DNI distinto al consultado.', 502);
+      throw new StudentLookupError('El servicio de UNHEVAL no está disponible.', 503);
     }
 
     const facultyId = parsedStudent.data.estudiante.escuela.id_facultad;
